@@ -288,6 +288,8 @@ export const settings = {
   clockFormatTwelve: '12 小时制（AM/PM）',
   keepScreenOn: '保持屏幕常亮',
   keepScreenOnHint: 'Psysonic 打开时',
+  resumeOnCarConnect: '在车内继续播放',
+  resumeOnCarConnectHint: '车辆重新连接时',
   preloadMiniPlayer: '预加载迷你播放器',
   preloadMiniPlayerDesc: '在应用启动时于后台构建迷你播放器窗口，使其首次打开即可立即显示内容。会占用少量额外内存。',
   miniPlayerCustomTitlebar: '隐藏窗口标题栏',

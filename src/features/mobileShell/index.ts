@@ -24,3 +24,4 @@ export { activeMobileTab, isMobileTabRoot, MOBILE_TAB_ROOTS } from './utils/mobi
 export { default as MobileThemePreview } from './components/MobileThemePreview';
 export { rememberSearchReturn } from './utils/searchReturn';
 export { useMobileScreenStore } from './store/mobileScreenStore';
+export { useMobilePlaybackStore } from './store/mobilePlaybackStore';

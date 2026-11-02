@@ -292,6 +292,8 @@ export const settings = {
   clockFormatTwelve: '12 時間 (AM/PM)',
   keepScreenOn: '画面をオンのままにする',
   keepScreenOnHint: 'Psysonic を開いている間',
+  resumeOnCarConnect: '車で再開',
+  resumeOnCarConnectHint: '車が再接続したとき',
   preloadMiniPlayer: 'ミニプレイヤーをプリロード',
   preloadMiniPlayerDesc: 'アプリ起動時にバックグラウンドでミニプレイヤーウィンドウを構築し、初回表示時に即座に内容を表示します。少しメモリを追加で使います。',
   miniPlayerCustomTitlebar: 'ウィンドウのタイトルバーを隠す',

@@ -292,6 +292,8 @@ export const settings = {
   clockFormatTwelve: '12-годинний (AM/PM)',
   keepScreenOn: 'Не вимикати екран',
   keepScreenOnHint: 'Поки Psysonic відкритий',
+  resumeOnCarConnect: 'Продовжувати в авто',
+  resumeOnCarConnectHint: 'Коли авто знову підключиться',
   preloadMiniPlayer: 'Попереднє завантаження мініплеєра',
   preloadMiniPlayerDesc: 'Створювати вікно мініплеєра у фоновому режимі при запуску для миттєвого відкриття. Використовує трохи більше пам’яті.',
   miniPlayerCustomTitlebar: 'Приховати рядок заголовка вікна',

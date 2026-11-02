@@ -292,6 +292,8 @@ export const settings = {
   clockFormatTwelve: '12-ώρες (ΠΜ/ΑΜ)',
   keepScreenOn: 'Οθόνη πάντα αναμμένη',
   keepScreenOnHint: 'Όσο το Psysonic είναι ανοιχτό',
+  resumeOnCarConnect: 'Συνέχεια στο αυτοκίνητο',
+  resumeOnCarConnectHint: 'Όταν το αυτοκίνητο συνδεθεί ξανά',
   preloadMiniPlayer: 'Προφόρτωση μικρού παραθύρου',
   preloadMiniPlayerDesc: 'Δημιουργία του μικρού παραθύρου στο παρασκήνιο κατά το ξεκίνημα της εφαρμογής ώστε να εμφανίζει δεδομένα κατευθείαν κατά το άνοιγμα. Χρησιμοποιεί περισσότερη μνήμη.',
   miniPlayerCustomTitlebar: 'Απόκρυψη της γραμμής τίτλου παραθύρου',
