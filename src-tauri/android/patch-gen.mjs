@@ -11,7 +11,9 @@
 //   ExoPlayer (PsysonicCarPlayer: Android Auto with the app closed) and the
 //   Kotlin half of `rustls-platform-verifier` (reqwest checks certificates through
 //   Android's trust store). The verifier ships it as a local Maven repository; its path
-//   comes from `cargo metadata`, so the version always matches Cargo.lock.
+//   comes from `cargo metadata`, so the version always matches Cargo.lock;
+// - the beta build (`PSYSONIC_ANDROID_BETA=1`): own application id and name, so the tester
+//   APK installs next to the Play version.
 
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -144,6 +146,19 @@ if (!manifest.includes(autoMarker)) {
 $1`);
   console.log('[patch-gen] manifest: android auto');
 }
+// Labels as placeholders, so the beta build (Gradle below) can rename itself.
+for (const [resource, placeholder] of [
+  ['@string/app_name', 'appLabel'],
+  ['@string/main_activity_title', 'activityLabel'],
+]) {
+  const label = `android:label="${resource}"`;
+  if (manifest.includes(label)) {
+    manifest = manifest.replace(label, `android:label="\${${placeholder}}"`);
+    console.log(`[patch-gen] manifest: ${resource} label as \${${placeholder}}`);
+  } else if (!manifest.includes(`android:label="\${${placeholder}}"`)) {
+    throw new Error(`AndroidManifest.xml has no ${resource} label`);
+  }
+}
 writeFileSync(manifestFile, manifest);
 
 // ── R8 (release builds) cannot see JNI calls into the verifier. The template already
@@ -231,5 +246,24 @@ if (!gradle.includes(signingMarker)) {
             signingConfigs.findByName("psysonic")?.let { signingConfig = it }`);
   }
   console.log('[patch-gen] gradle: own signing key when PSYSONIC_ANDROID_SIGNING is set');
+}
+// The tester APK installs next to the Play version: Play owns `dev.psysonic.player`, an
+// APK with the same id but another signature can only replace it. PSYSONIC_ANDROID_BETA=1
+// builds `dev.psysonic.player.beta` named "Psysonic Beta"; the Kotlin package stays, and
+// every intent, the file provider and the data folder already follow the application id.
+const betaMarker = '// psysonic: beta build';
+if (!gradle.includes(betaMarker)) {
+  const applicationIdLine = /^( *)applicationId = "dev\.psysonic\.player"\r?\n/m;
+  if (!applicationIdLine.test(gradle)) throw new Error('no applicationId line in build.gradle.kts');
+  gradle = gradle.replace(applicationIdLine, (match, indent) => `${match}${indent}${betaMarker}
+${indent}manifestPlaceholders["appLabel"] = "@string/app_name"
+${indent}manifestPlaceholders["activityLabel"] = "@string/main_activity_title"
+${indent}if (System.getenv("PSYSONIC_ANDROID_BETA") == "1") {
+${indent}    applicationIdSuffix = ".beta"
+${indent}    manifestPlaceholders["appLabel"] = "Psysonic Beta"
+${indent}    manifestPlaceholders["activityLabel"] = "Psysonic Beta"
+${indent}}
+`);
+  console.log('[patch-gen] gradle: beta id and name when PSYSONIC_ANDROID_BETA=1');
 }
 writeFileSync(gradleFile, gradle);
