@@ -6042,6 +6042,12 @@ html[data-mobile-reordering] .playlist-reorder-hint {
   padding: 0 var(--space-4) var(--space-4);
 }
 
+.mobile-eq__switches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .mobile-eq__toggle {
   padding: 0;
   border-bottom: none;

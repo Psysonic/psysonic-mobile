@@ -6,6 +6,7 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(async () => null) }));
 import { renderWithProviders } from '@/test/helpers/renderWithProviders';
 import { EQ_BANDS, useEqStore } from '@/store/eqStore';
 import MobileEqSheet from './MobileEqSheet';
+import { useMobileOutputStore } from '@/features/mobileShell/utils/mobileEqDevice';
 import { curvePoint, nearestBand } from '@/features/mobileShell/utils/eqCurvePoints';
 
 const WIDTH = 340;
@@ -78,16 +79,34 @@ describe('MobileEqSheet', () => {
 
   it('the switch and the presets work on the store', () => {
     render();
-    fireEvent.click(within(sheet()).getByRole('switch'));
+    fireEvent.click(within(sheet()).getByRole('switch', { name: 'Enable Equalizer' }));
     expect(useEqStore.getState().enabled).toBe(false);
-    fireEvent.click(within(sheet()).getByRole('switch'));
+    fireEvent.click(within(sheet()).getByRole('switch', { name: 'Enable Equalizer' }));
     fireEvent.click(within(sheet()).getByRole('button', { name: 'Rock' }));
     expect(useEqStore.getState().activePreset).toBe('Rock');
   });
 
-  it('says the EQ is off in the car', () => {
-    useEqStore.setState({ carActive: true });
+  it('in the car it says the EQ is off there and offers to use it', () => {
+    useEqStore.setState({ carActive: true, eqInCar: false });
     render();
     expect(within(sheet()).getByText(/Off in the car/)).toBeInTheDocument();
+    fireEvent.click(within(sheet()).getByRole('switch', { name: 'Use in the car' }));
+    expect(useEqStore.getState().eqInCar).toBe(true);
+  });
+
+  it('the car switch is only there with a car', () => {
+    render();
+    expect(within(sheet()).queryByRole('switch', { name: 'Use in the car' })).toBeNull();
+  });
+
+  it('remembering per device names the output it applies to', () => {
+    useEqStore.setState({ rememberPerDevice: false });
+    useMobileOutputStore.setState({ output: { kind: 'bluetooth', name: 'Galaxy Buds2 Pro' } });
+    render();
+    expect(within(sheet()).queryByText(/Applies to/)).toBeNull();
+    fireEvent.click(within(sheet()).getByRole('switch', { name: 'Remember EQ per device' }));
+    expect(useEqStore.getState().rememberPerDevice).toBe(true);
+    expect(within(sheet()).getByText('Applies to Galaxy Buds2 Pro')).toBeInTheDocument();
+    useMobileOutputStore.setState({ output: null });
   });
 });

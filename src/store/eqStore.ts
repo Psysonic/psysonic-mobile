@@ -59,6 +59,9 @@ interface EqState {
    */
   carActive: boolean;
   setCarActive: (v: boolean) => void;
+  /** Mobile: use the EQ in the car after all (off by default). */
+  eqInCar: boolean;
+  setEqInCar: (v: boolean) => void;
 
   setBandGain: (index: number, gain: number) => void;
   setEnabled: (v: boolean) => void;
@@ -76,14 +79,14 @@ interface EqState {
   saveSnapshotFor: (deviceKey: string) => void;
 }
 
-/** Whether the EQ actually runs: switched on and no car connected. */
-export function eqActive(state: { enabled: boolean; carActive: boolean }): boolean {
-  return state.enabled && !state.carActive;
+/** Whether the EQ actually runs: switched on, and no car connected unless the EQ is wanted there. */
+export function eqActive(state: { enabled: boolean; carActive: boolean; eqInCar: boolean }): boolean {
+  return state.enabled && (!state.carActive || state.eqInCar);
 }
 
 function syncEq(gains: number[], enabled: boolean, preGain: number) {
-  const carActive = useEqStore.getState().carActive;
-  audioSetEq({ gains: gains.map(g => g), enabled: eqActive({ enabled, carActive }), preGain }).catch(() => {});
+  const { carActive, eqInCar } = useEqStore.getState();
+  audioSetEq({ gains: gains.map(g => g), enabled: eqActive({ enabled, carActive, eqInCar }), preGain }).catch(() => {});
 }
 
 export const useEqStore = create<EqState>()(
@@ -97,10 +100,16 @@ export const useEqStore = create<EqState>()(
       rememberPerDevice: false,
       byDevice: {},
       carActive: false,
+      eqInCar: false,
 
       setCarActive: (v) => {
         if (get().carActive === v) return;
         set({ carActive: v });
+        syncEq(get().gains, get().enabled, get().preGain);
+      },
+
+      setEqInCar: (v) => {
+        set({ eqInCar: v });
         syncEq(get().gains, get().enabled, get().preGain);
       },
 
@@ -183,6 +192,7 @@ export const useEqStore = create<EqState>()(
         customPresets: s.customPresets,
         rememberPerDevice: s.rememberPerDevice,
         byDevice: s.byDevice,
+        eqInCar: s.eqInCar,
       }),
     }
   )

@@ -9,6 +9,7 @@ import { pinFullAppVolume } from '@/features/mobileShell/utils/fullAppVolume';
 import { watchInfiniteQueue } from '@/features/mobileShell/utils/infiniteQueueWatch';
 import { keepScreenOnForLibraryDownloads } from '@/features/mobileShell/ios/libraryDownloadScreenOn';
 import { resumeWhenCarReconnects } from '@/features/mobileShell/utils/carResume';
+import { keepEqPerIosOutput } from '@/features/mobileShell/ios/iosEqOutput';
 
 /**
  * Touch shell plumbing to the native iOS side: calls / lost headphones pause the
@@ -18,7 +19,8 @@ import { resumeWhenCarReconnects } from '@/features/mobileShell/utils/carResume'
  * app container before anything checks them. The app's own volume stays at full: the
  * iPhone's buttons set the loudness. The infinite queue tops up whenever a song starts.
  * While a whole library downloads, the screen stays on (the download needs the app open).
- * With the setting on, music the car stopped carries on when CarPlay connects again.
+ * With the setting on, music the car stopped carries on when CarPlay connects again, and the
+ * EQ is kept per output when that is switched on.
  */
 export default function MobileIosBridge() {
   useIosAudioInterruptions();
@@ -30,6 +32,7 @@ export default function MobileIosBridge() {
   useEffect(() => watchInfiniteQueue(), []);
   useEffect(() => keepScreenOnForLibraryDownloads(), []);
   useEffect(() => resumeWhenCarReconnects(), []);
+  useEffect(() => keepEqPerIosOutput(), []);
   useEffect(() => {
     let off: (() => void) | undefined;
     let unmounted = false;

@@ -9,6 +9,9 @@
 //! A newly available output (CarPlay plugged in, headphones connected) can leave
 //! the running output stalled on the old route, so the engine reopens it the way
 //! it does after a system resume: the track carries on where it was.
+//!
+//! The web layer also learns which output plays (`ios-audio:output`, answered again on
+//! `ios-audio:output-request`), to keep the EQ per device.
 
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -17,10 +20,14 @@ use block2::RcBlock;
 use objc2_avf_audio::{
     AVAudioSession, AVAudioSessionCategoryPlayback, AVAudioSessionInterruptionNotification,
     AVAudioSessionInterruptionOptionKey, AVAudioSessionInterruptionTypeKey,
-    AVAudioSessionRouteChangeNotification, AVAudioSessionRouteChangeReasonKey,
+    AVAudioSessionPortBluetoothA2DP, AVAudioSessionPortBluetoothHFP, AVAudioSessionPortBluetoothLE,
+    AVAudioSessionPortBuiltInReceiver, AVAudioSessionPortBuiltInSpeaker,
+    AVAudioSessionPortCarAudio, AVAudioSessionPortHeadphones, AVAudioSessionPortLineOut,
+    AVAudioSessionPortUSBAudio, AVAudioSessionRouteChangeNotification,
+    AVAudioSessionRouteChangeReasonKey,
 };
 use objc2_foundation::{NSNotification, NSNotificationCenter, NSNumber, NSString};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Listener};
 
 /// `AVAudioSessionInterruptionTypeBegan` (ended is 0).
 const INTERRUPTION_BEGAN: usize = 1;
@@ -120,6 +127,10 @@ struct InterruptionPayload {
 pub(crate) fn observe_interruptions(app: &AppHandle) {
     // The activation in `run()` may have failed before the app handle existed.
     retry_activation(app);
+    let output_app = app.clone();
+    app.listen_any("ios-audio:output-request", move |_| {
+        let _ = output_app.emit("ios-audio:output", current_output());
+    });
     let center = NSNotificationCenter::defaultCenter();
 
     let interruption_app = app.clone();
@@ -170,6 +181,7 @@ pub(crate) fn observe_interruptions(app: &AppHandle) {
                 current_outputs()
             );
             retry_activation(&route_app);
+            let _ = route_app.emit("ios-audio:output", current_output());
             match reason {
                 Some(ROUTE_OLD_DEVICE_UNAVAILABLE) => {
                     let _ = route_app.emit("ios-audio:route-lost", ());
@@ -205,6 +217,74 @@ pub(crate) fn observe_interruptions(app: &AppHandle) {
         )
     };
     std::mem::forget(observers);
+}
+
+/// The output music plays on, for the EQ per device (`mobileEqDevice.ts`).
+#[derive(Clone, serde::Serialize)]
+struct OutputPayload {
+    /// `speaker`, `wired`, `bluetooth`, `car`, `usb` or `other`.
+    kind: &'static str,
+    /// The port's name as iOS shows it (a headset's own name), empty without a route.
+    name: String,
+}
+
+/// The session's first output.
+fn current_output() -> OutputPayload {
+    use objc2::msg_send;
+    use objc2::runtime::AnyObject;
+    let none = OutputPayload {
+        kind: "other",
+        name: String::new(),
+    };
+    // SAFETY: plain getters on the process-wide session; nil is checked at every step.
+    unsafe {
+        let session = AVAudioSession::sharedInstance();
+        let route: *mut AnyObject = msg_send![&*session, currentRoute];
+        if route.is_null() {
+            return none;
+        }
+        let outputs: *mut AnyObject = msg_send![route, outputs];
+        if outputs.is_null() {
+            return none;
+        }
+        let count: usize = msg_send![outputs, count];
+        if count == 0 {
+            return none;
+        }
+        let port: *mut AnyObject = msg_send![outputs, objectAtIndex: 0usize];
+        let port_type: *mut NSString = msg_send![port, portType];
+        let port_name: *mut NSString = msg_send![port, portName];
+        OutputPayload {
+            kind: port_type.as_ref().map_or("other", port_kind),
+            name: port_name
+                .as_ref()
+                .map(|n| n.to_string())
+                .unwrap_or_default(),
+        }
+    }
+}
+
+fn port_kind(port_type: &NSString) -> &'static str {
+    let is = |port: Option<&NSString>| port.is_some_and(|p| p.isEqualToString(port_type));
+    // SAFETY: the port names are immutable framework constants.
+    unsafe {
+        if is(AVAudioSessionPortBuiltInSpeaker) || is(AVAudioSessionPortBuiltInReceiver) {
+            "speaker"
+        } else if is(AVAudioSessionPortHeadphones) || is(AVAudioSessionPortLineOut) {
+            "wired"
+        } else if is(AVAudioSessionPortBluetoothA2DP)
+            || is(AVAudioSessionPortBluetoothLE)
+            || is(AVAudioSessionPortBluetoothHFP)
+        {
+            "bluetooth"
+        } else if is(AVAudioSessionPortCarAudio) {
+            "car"
+        } else if is(AVAudioSessionPortUSBAudio) {
+            "usb"
+        } else {
+            "other"
+        }
+    }
 }
 
 /// Port types of the session's current outputs (e.g. `CarAudio`, `Speaker`), for the log.

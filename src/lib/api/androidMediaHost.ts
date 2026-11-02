@@ -19,6 +19,8 @@ interface AndroidMediaHost {
   setKeepScreenOn?(keepOn: boolean): void;
   /** Android Auto is connected right now. Older app builds lack it. */
   isCarConnected?(): boolean;
+  /** The output media plays on, as `{"kind","name"}` JSON. Older app builds lack it. */
+  currentOutput?(): string;
 }
 
 declare global {
@@ -67,6 +69,11 @@ export function androidSetBackgroundWork(active: boolean, title: string, text: s
 
 export function androidIsCarConnected(): boolean {
   return androidMediaHost()?.isCarConnected?.() === true;
+}
+
+/** JSON of the output media plays on now, or `null` (not Android, older app build). */
+export function androidCurrentOutput(): string | null {
+  return androidMediaHost()?.currentOutput?.() ?? null;
 }
 
 /** The screen stays on while the app is in front. */

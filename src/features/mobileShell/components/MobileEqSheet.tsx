@@ -5,6 +5,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useThemeRevision } from '@/lib/themes/themeRevision';
 import { drawCurve, EQ_CURVE_GEOMETRY as G } from '@/features/playback';
 import { curvePoint, nearestBand } from '@/features/mobileShell/utils/eqCurvePoints';
+import { useMobileOutputStore, type MobileOutput } from '@/features/mobileShell/utils/mobileEqDevice';
 import MobileSheet from '@/features/mobileShell/components/MobileSheet';
 
 /** Band gains are kept in steps of this many dB. */
@@ -13,6 +14,31 @@ const MAX_DB = 12;
 
 const clampGain = (db: number) => Math.max(-MAX_DB, Math.min(MAX_DB, Math.round(db / STEP_DB) * STEP_DB));
 const formatDb = (db: number) => `${db > 0 ? '+' : ''}${db.toFixed(1)}`;
+
+/** How an output is named in the sheet: its own name where it has one. */
+function outputLabel(output: MobileOutput, t: (key: string) => string): string {
+  if (output.kind === 'speaker') return t('settings.eqOutputSpeaker');
+  if (output.name) return output.name;
+  if (output.kind === 'car') return t('settings.eqOutputCar');
+  if (output.kind === 'wired') return t('settings.eqOutputWired');
+  return t('settings.eqOutputOther');
+}
+
+function SwitchRow({ id, label, sub, checked, onToggle }: {
+  id: string; label: string; sub?: string; checked: boolean; onToggle: () => void;
+}) {
+  return (
+    <div className="mobile-list-row mobile-eq__toggle">
+      <span className="mobile-list-row__text">
+        <span className="mobile-list-row__label" id={id}>{label}</span>
+        {sub && <span className="mobile-list-row__sub">{sub}</span>}
+      </span>
+      <button type="button" role="switch" aria-checked={checked} aria-labelledby={id} className="mobile-switch" onClick={onToggle}>
+        <span className="mobile-switch__thumb" />
+      </button>
+    </div>
+  );
+}
 
 interface Props {
   onClose: () => void;
@@ -32,7 +58,10 @@ export default function MobileEqSheet({ onClose }: Props) {
   const activePreset = useEqStore(s => s.activePreset);
   const customPresets = useEqStore(s => s.customPresets);
   const carActive = useEqStore(s => s.carActive);
-  const { setBandGain, setEnabled, setPreGain, applyPreset } = useEqStore.getState();
+  const eqInCar = useEqStore(s => s.eqInCar);
+  const perDevice = useEqStore(s => s.rememberPerDevice);
+  const output = useMobileOutputStore(s => s.output);
+  const { setBandGain, setEnabled, setPreGain, applyPreset, setEqInCar, setRememberPerDevice } = useEqStore.getState();
 
   const theme = useThemeStore(s => s.theme);
   const themeRev = useThemeRevision();
@@ -114,21 +143,24 @@ export default function MobileEqSheet({ onClose }: Props) {
   return (
     <MobileSheet title={t('settings.eqTitle')} onClose={onClose} className="mobile-eq-sheet">
       <div className="mobile-eq">
-        <div className="mobile-list-row mobile-eq__toggle">
-          <span className="mobile-list-row__text">
-            <span className="mobile-list-row__label" id="mobile-eq-enabled-label">{t('settings.eqEnabled')}</span>
-            {carActive && <span className="mobile-list-row__sub">{t('settings.eqCarOff')}</span>}
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={enabled}
-            aria-labelledby="mobile-eq-enabled-label"
-            className="mobile-switch"
-            onClick={() => setEnabled(!enabled)}
-          >
-            <span className="mobile-switch__thumb" />
-          </button>
+        <div className="mobile-eq__switches">
+          <SwitchRow id="mobile-eq-enabled-label" label={t('settings.eqEnabled')} checked={enabled} onToggle={() => setEnabled(!enabled)} />
+          <SwitchRow
+            id="mobile-eq-per-device-label"
+            label={t('settings.audioOutputDeviceRememberEq')}
+            sub={perDevice && output ? t('settings.eqAppliesTo', { device: outputLabel(output, t) }) : undefined}
+            checked={perDevice}
+            onToggle={() => setRememberPerDevice(!perDevice)}
+          />
+          {carActive && (
+            <SwitchRow
+              id="mobile-eq-in-car-label"
+              label={t('settings.eqInCar')}
+              sub={eqInCar ? undefined : t('settings.eqCarOff')}
+              checked={eqInCar}
+              onToggle={() => setEqInCar(!eqInCar)}
+            />
+          )}
         </div>
 
         <div className="mobile-chip-row mobile-eq__presets" role="group" aria-label={t('settings.eqPreset')}>

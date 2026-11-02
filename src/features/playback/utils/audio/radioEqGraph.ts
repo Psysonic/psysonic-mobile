@@ -273,6 +273,7 @@ export function bindRadioEqStore(): () => void {
         || state.enabled !== prev.enabled
         || state.preGain !== prev.preGain
         || state.carActive !== prev.carActive
+        || state.eqInCar !== prev.eqInCar
       ) {
         push();
       }

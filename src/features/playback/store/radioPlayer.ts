@@ -293,8 +293,8 @@ export function bindRadioEqAttachOnEnable(): () => void {
   }
   eqAttachUnsub = useEqStore.subscribe((state, prev) => {
     // Effective EQ (on and no car connected, as `eqActive` in eqStore) turned on.
-    const nowOn = state.enabled && !state.carActive;
-    const wasOn = prev.enabled && !prev.carActive;
+    const nowOn = state.enabled && (!state.carActive || state.eqInCar);
+    const wasOn = prev.enabled && (!prev.carActive || prev.eqInCar);
     if (!nowOn || wasOn) return;
     const player = usePlayerStore.getState();
     if (!player.currentRadio || radioGraphActive) return;
@@ -303,7 +303,7 @@ export function bindRadioEqAttachOnEnable(): () => void {
       if (radioGraphActive) {
         applyOutputVolume(lastVolume);
         const eq = useEqStore.getState();
-        applyRadioEqSettings(eq.gains, eq.enabled && !eq.carActive, eq.preGain);
+        applyRadioEqSettings(eq.gains, eq.enabled && (!eq.carActive || eq.eqInCar), eq.preGain);
       }
     });
   });

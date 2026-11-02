@@ -17,8 +17,11 @@ import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
 import android.graphics.BitmapFactory
 import android.media.AudioAttributes
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -95,6 +98,67 @@ object PsysonicMedia {
     // once the view is off screen and may freeze it, so the next track never starts. Keep
     // it at the app's own priority, which the playback service holds up while music plays.
     view.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
+    watchOutputs(activity.applicationContext)
+  }
+
+  // ── The output music plays on (speaker, wired, a Bluetooth headset), for the EQ per
+  // device (mobileEqDevice.ts). The audio engine only sees "the default output" here.
+  private var outputsWatched = false
+
+  private val outputCallback = object : AudioDeviceCallback() {
+    override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>) = outputChanged()
+    override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>) = outputChanged()
+  }
+
+  private fun watchOutputs(ctx: Context) {
+    if (outputsWatched) return
+    (ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager).registerAudioDeviceCallback(outputCallback, main)
+    outputsWatched = true
+  }
+
+  /** The route settles a moment after the device list changes. */
+  private fun outputChanged() {
+    main.removeCallbacks(reportOutput)
+    main.postDelayed(reportOutput, 600)
+  }
+
+  private val reportOutput = Runnable {
+    val json = JSONObject.quote(currentOutput())
+    webView?.evaluateJavascript("window.__psyOutputChanged && window.__psyOutputChanged($json)", null)
+  }
+
+  /** `{"kind","name"}` of the output media plays on now. */
+  fun currentOutput(): String {
+    val ctx = appContext ?: return "{}"
+    val am = ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    val device = if (Build.VERSION.SDK_INT >= 33) {
+      val media = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).build()
+      am.getAudioDevicesForAttributes(media).firstOrNull()
+    } else null
+    // Before Android 13 there is no direct answer: the system routes media to the most
+    // personal output that is there, which is the order below.
+    val picked = device ?: am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).minByOrNull { outputRank(it.type) }
+    return JSONObject()
+      .put("kind", picked?.let { outputKind(it.type) } ?: "speaker")
+      .put("name", picked?.productName?.toString().orEmpty())
+      .toString()
+  }
+
+  private fun outputKind(type: Int): String = when (type) {
+    AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLE_HEADSET,
+    AudioDeviceInfo.TYPE_BLE_SPEAKER, AudioDeviceInfo.TYPE_BLE_BROADCAST -> "bluetooth"
+    AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "wired"
+    AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_ACCESSORY -> "usb"
+    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER_SAFE -> "speaker"
+    else -> "other"
+  }
+
+  private fun outputRank(type: Int): Int = when (outputKind(type)) {
+    "bluetooth" -> 0
+    "usb" -> 1
+    "wired" -> 2
+    "speaker" -> 4
+    else -> 3
   }
 
   fun sessionToken(): MediaSessionCompat.Token? = session?.sessionToken
@@ -655,6 +719,10 @@ object PsysonicMedia {
     fun setKeepScreenOn(keepOn: Boolean) {
       main.post { PsysonicMedia.setKeepScreenOn(keepOn) }
     }
+
+    /** The output media plays on now, as JSON (asked once when the web view starts). */
+    @JavascriptInterface
+    fun currentOutput(): String = PsysonicMedia.currentOutput()
 
     /** Android Auto is connected right now (asked once when the web view starts). */
     @JavascriptInterface
