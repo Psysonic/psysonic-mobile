@@ -134,8 +134,11 @@ html[data-mobile-app] .mobile-search-overlay {
 .mobile-glass {
   background: var(--mobile-glass-bg);
   border: 1px solid var(--mobile-glass-border);
-  -webkit-backdrop-filter: blur(22px) saturate(160%);
-  backdrop-filter: blur(22px) saturate(160%);
+  /* 8 px, not 22: the blur is redrawn every frame anything moves underneath, and on a
+     Galaxy S22 a wide radius under the tab and player bars doubled the dropped frames
+     when a sheet opened. */
+  -webkit-backdrop-filter: blur(8px) saturate(160%);
+  backdrop-filter: blur(8px) saturate(160%);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
 }
 
@@ -1231,6 +1234,20 @@ html[data-mobile-bars='collapsed'] .mobile-miniplayer__subtitle {
   align-items: flex-end;
   background: rgba(0, 0, 0, 0.45);
   animation: mobile-sheet-fade 0.2s ease both;
+}
+
+/* The page under an open sheet is dimmed anyway; its glass would only be recomputed on
+   every frame of the sheet's animation (measured: about half of the dropped frames). */
+html[data-mobile-app]:has(.mobile-sheet-backdrop) :is(
+  .mobile-glass,
+  .mobile-round-btn,
+  .mobile-back-pill,
+  .mobile-back-bar,
+  .mobile-album__top,
+  .hero-content
+) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .mobile-sheet {
@@ -4566,11 +4583,13 @@ button.mobile-source-check::after {
 .mobile-live-btn--active {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  animation: mobile-live-pulse 2s ease-out infinite;
+  /* Three rings when listening starts, then still: a pulse without end kept the whole
+     app drawing at the display's full rate (120 frames a second on a Galaxy S22). */
+  animation: mobile-live-pulse 2s ease-out 3;
 }
 
 .mobile-live-btn--active > svg {
-  animation: pulse 1.5s ease-in-out infinite;
+  animation: pulse 1.5s ease-in-out 4;
 }
 
 /* A ring in the theme accent grows out of the button and fades. */
