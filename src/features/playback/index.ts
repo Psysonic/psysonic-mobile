@@ -53,3 +53,10 @@ export { usePlaybackScheduleRemaining } from './utils/playbackScheduleFormat';
 /** Song Info content (data + rows), shared by the desktop modal and the touch shell's sheet. */
 export { useSongInfoData } from './hooks/useSongInfoData';
 export { default as SongInfoRows } from './components/SongInfoRows';
+/** Touch shell: lock screen, car lists, Android Auto snapshot, infinite queue on gapless. */
+export { topUpInfiniteQueueAhead } from './store/nextAction';
+export { RADIO_STARTING_EVENT } from './store/radioPlayer';
+export { fetchGenreTracksForPlayback } from './utils/playback/genreBrowsePlayback';
+export { resolvePlaybackUrl } from './utils/playback/resolvePlaybackUrl';
+export { submitTrackScrobble } from './store/submitTrackScrobble';
+export { startupQueueSettled } from './store/startupQueueSettled';

@@ -5,7 +5,7 @@
  * ran at half speed with the screen off (S22, 25.10.).
  */
 import i18n from '@/lib/i18n';
-import { androidSetBackgroundWork } from '@/features/mobileShell/android/androidMedia';
+import { androidSetBackgroundWork } from '@/lib/api/androidMediaHost';
 import { watchLibraryDownloadActivity } from '@/features/mobileShell/utils/libraryDownloadActivity';
 
 /** Returns the cleanup. */

@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 import { ChevronRight, Signal } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import SettingsSubSection from '@/features/settings/components/SettingsSubSection';
-import { useMobileActionSheetStore } from '@/features/mobileShell/store/mobileActionSheetStore';
+import { useMobileActionSheetStore } from '@/features/mobileShell';
 import { allNormalizedAddresses, isLanUrl } from '@/lib/server/serverAddress';
 import { connectBaseUrlForServer, normalizeServerBaseUrl } from '@/lib/server/serverEndpoint';
 import { isNavidromeServer } from '@/lib/server/subsonicServerIdentity';

@@ -4,7 +4,7 @@
  * error so the callers' `.catch()` fire-and-forget semantics stay unchanged.
  */
 import { commands } from '@/generated/bindings';
-import { androidMediaSetMetadata, androidMediaSetPlayback } from '@/features/mobileShell/android/androidMedia';
+import { androidMediaSetMetadata, androidMediaSetPlayback } from '@/lib/api/androidMediaHost';
 import { IS_ANDROID } from '@/lib/util/platform';
 
 export async function mprisSetMetadata(args: {

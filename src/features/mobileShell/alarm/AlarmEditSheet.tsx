@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MobileSheet from '@/features/mobileShell/components/MobileSheet';
-import { usePlaylistStore } from '@/features/playlist/store/playlistStore';
+import { usePlaylistStore } from '@/features/playlist';
 import { useLuckyMixAvailable } from '@/features/randomMix';
 import { FADE_CHOICES, SILENCE_CHOICES, SNOOZE_CHOICES, type Alarm, type AlarmSource } from './alarmStore';
 import { weekdayNames } from './alarmFormat';
