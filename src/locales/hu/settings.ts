@@ -292,6 +292,8 @@ export const settings = {
   clockFormatTwelve: '12 órás (de./du.)',
   keepScreenOn: 'Képernyő bekapcsolva tartása',
   keepScreenOnHint: 'Amíg a Psysonic nyitva van',
+  resumeOnCarConnect: 'Folytatás az autóban',
+  resumeOnCarConnectHint: 'Amikor az autó újra csatlakozik',
   preloadMiniPlayer: 'Mini lejátszó előtöltése',
   preloadMiniPlayerDesc: 'A mini lejátszó ablakának felépítése a háttérben az alkalmazás indításakor, hogy első megnyitáskor azonnal tartalmat mutasson. Kicsivel több memóriát használ.',
   miniPlayerCustomTitlebar: 'Az ablak címsorának elrejtése',

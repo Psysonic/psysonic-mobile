@@ -291,6 +291,8 @@ export const settings = {
   clockFormatTwelve: '12 ore (AM/PM)',
   keepScreenOn: 'Menține ecranul pornit',
   keepScreenOnHint: 'Cât timp Psysonic este deschis',
+  resumeOnCarConnect: 'Reia în mașină',
+  resumeOnCarConnectHint: 'Când mașina se reconectează',
   preloadMiniPlayer: 'Preîncarcă mini player',
   preloadMiniPlayerDesc: 'Crează fereastra mini player în fundal la deschiderea aplicației pentru a arăta conținut instantaneu la prima deschidere. Folosește puțină extra memorie.',
   miniPlayerCustomTitlebar: 'Ascunde bara de titlu a ferestrei',

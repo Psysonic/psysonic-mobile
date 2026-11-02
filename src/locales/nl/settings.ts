@@ -288,6 +288,8 @@ export const settings = {
   clockFormatTwelve: '12-uurs (AM/PM)',
   keepScreenOn: 'Scherm aan houden',
   keepScreenOnHint: 'Zolang Psysonic open is',
+  resumeOnCarConnect: 'Hervatten in de auto',
+  resumeOnCarConnectHint: 'Wanneer de auto opnieuw verbindt',
   preloadMiniPlayer: 'Mini-speler vooraf laden',
   preloadMiniPlayerDesc: 'Bouwt het venster van de mini-speler op de achtergrond bij het opstarten van de app, zodat het bij de eerste opening direct inhoud toont. Gebruikt iets meer geheugen.',
   miniPlayerCustomTitlebar: 'Titelbalk van het venster verbergen',
