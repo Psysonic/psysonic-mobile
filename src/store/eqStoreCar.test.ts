@@ -12,7 +12,7 @@ const sentEnabled = () => invokeMock.mock.calls
 
 describe('eqStore in the car', () => {
   beforeEach(() => {
-    useEqStore.setState({ enabled: true, carActive: false });
+    useEqStore.setState({ enabled: true, carActive: false, eqInCar: false });
     invokeMock.mockClear();
   });
 
@@ -41,9 +41,18 @@ describe('eqStore in the car', () => {
     expect(sentEnabled()).toEqual([false, false]);
   });
 
-  it('eqActive needs the EQ on and no car', () => {
-    expect(eqActive({ enabled: true, carActive: false })).toBe(true);
-    expect(eqActive({ enabled: true, carActive: true })).toBe(false);
-    expect(eqActive({ enabled: false, carActive: false })).toBe(false);
+  it('with the EQ wanted in the car, it stays in while the car is there', () => {
+    useEqStore.getState().setEqInCar(true);
+    useEqStore.getState().setCarActive(true);
+    expect(sentEnabled()).toEqual([true, true]);
+    useEqStore.getState().setEqInCar(false);
+    expect(sentEnabled()).toEqual([true, true, false]);
+  });
+
+  it('eqActive needs the EQ on and no car, unless the EQ is wanted there', () => {
+    expect(eqActive({ enabled: true, carActive: false, eqInCar: false })).toBe(true);
+    expect(eqActive({ enabled: true, carActive: true, eqInCar: false })).toBe(false);
+    expect(eqActive({ enabled: true, carActive: true, eqInCar: true })).toBe(true);
+    expect(eqActive({ enabled: false, carActive: true, eqInCar: true })).toBe(false);
   });
 });
