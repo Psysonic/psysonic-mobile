@@ -90,12 +90,12 @@ describe('MobilePlayer', () => {
     }
   });
 
-  it('favourite, lyrics, queue and more are icon-only buttons in the bottom row, in that order', () => {
+  it('favourite, lyrics, equalizer, queue and more are icon-only buttons in the bottom row, in that order', () => {
     const { container } = renderPlayer();
     const footer = container.querySelector('.mobile-player__footer') as HTMLElement;
     const meta = container.querySelector('.mobile-player__meta') as HTMLElement;
     const buttons = within(footer).getAllByRole('button');
-    expect(buttons.map(b => b.getAttribute('aria-label'))).toEqual(['Favorite', 'Lyrics', 'Queue', 'More options']);
+    expect(buttons.map(b => b.getAttribute('aria-label'))).toEqual(['Favorite', 'Lyrics', 'Equalizer', 'Queue', 'More options']);
     for (const button of buttons) expect(button.textContent).toBe('');
     expect(within(meta).queryByRole('button')).toBeNull();
     expect(within(meta).getByText('Chaos')).toBeInTheDocument();

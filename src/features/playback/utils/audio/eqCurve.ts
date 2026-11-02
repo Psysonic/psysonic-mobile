@@ -3,6 +3,14 @@ import { EQ_BANDS } from '@/store/eqStore';
 // ─── Frequency response canvas ────────────────────────────────────────────────
 
 const SAMPLE_RATE = 44100;
+
+/** Axes of `drawCurve`: log frequency left to right, dB top to bottom, padding in CSS px. */
+export const EQ_CURVE_GEOMETRY = {
+  fMin: 20, fMax: 20000,
+  dbMin: -13, dbMax: 13,
+  padL: 36, padR: 8, padT: 8, padB: 1,
+} as const;
+
 const EQ_Q = 1.41;
 
 export function biquadPeakResponse(freq: number, centerHz: number, gainDb: number, sampleRate: number): number {
@@ -33,9 +41,7 @@ export function drawCurve(canvas: HTMLCanvasElement, gains: number[], accentColo
   const W = canvas.offsetWidth;
   const H = canvas.offsetHeight;
 
-  const fMin = 20, fMax = 20000;
-  const dbMin = -13, dbMax = 13;
-  const padL = 36, padR = 8, padT = 8, padB = 1;
+  const { fMin, fMax, dbMin, dbMax, padL, padR, padT, padB } = EQ_CURVE_GEOMETRY;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 

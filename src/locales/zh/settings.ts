@@ -163,6 +163,8 @@ export const settings = {
   eqResetBands: '重置为平直',
   eqPreGain: '预增益',
   eqResetPreGain: '重置预增益',
+  eqCarOff: '车内关闭，使用车辆自身的均衡器',
+  eqDragHint: '在频段上方或下方触摸并拖动',
   eqAutoEqTitle: 'AutoEQ 耳机查询',
   eqAutoEqPlaceholder: '搜索耳机/入耳式型号…',
   eqAutoEqSearching: '搜索中…',

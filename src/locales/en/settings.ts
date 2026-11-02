@@ -164,6 +164,8 @@ export const settings = {
   eqResetBands: 'Reset to Flat',
   eqPreGain: 'Pre-gain',
   eqResetPreGain: 'Reset pre-gain',
+  eqCarOff: 'Off in the car, the car’s own EQ applies',
+  eqDragHint: 'Touch above or below a band and drag',
   eqAutoEqTitle: 'AutoEQ Headphone Lookup',
   eqAutoEqPlaceholder: 'Search headphone / IEM model…',
   eqAutoEqSearching: 'Searching…',

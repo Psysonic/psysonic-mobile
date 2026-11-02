@@ -163,6 +163,8 @@ export const settings = {
   eqResetBands: 'Réinitialiser à plat',
   eqPreGain: 'Pré-amplification',
   eqResetPreGain: 'Réinitialiser la pré-amplification',
+  eqCarOff: 'Désactivé en voiture, l’égaliseur de la voiture s’applique',
+  eqDragHint: 'Touchez au-dessus ou en dessous d’une bande et faites glisser',
   eqAutoEqTitle: 'Recherche AutoEQ',
   eqAutoEqPlaceholder: 'Rechercher un casque / IEM…',
   eqAutoEqSearching: 'Recherche…',

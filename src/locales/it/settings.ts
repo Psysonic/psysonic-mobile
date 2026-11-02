@@ -164,6 +164,8 @@ export const settings = {
   eqResetBands: 'Ripristina piatto',
   eqPreGain: 'Pre-guadagno',
   eqResetPreGain: 'Ripristina pre-guadagno',
+  eqCarOff: 'Spento in auto, vale l’equalizzatore dell’auto',
+  eqDragHint: 'Tocca sopra o sotto una banda e trascina',
   eqAutoEqTitle: 'Ricerca cuffie AutoEQ',
   eqAutoEqPlaceholder: 'Cerca modello di cuffie / IEM…',
   eqAutoEqSearching: 'Ricerca in corso…',

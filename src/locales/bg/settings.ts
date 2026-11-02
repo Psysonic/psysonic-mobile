@@ -164,6 +164,8 @@ export const settings = {
   eqResetBands: 'Върни към плоска настройка',
   eqPreGain: 'Предварително усилване',
   eqResetPreGain: 'Нулирай предварителното усилване',
+  eqCarOff: 'Изключен в колата, там важи еквалайзерът на колата',
+  eqDragHint: 'Докоснете над или под честота и плъзнете',
   eqAutoEqTitle: 'Търсене на слушалки в AutoEQ',
   eqAutoEqPlaceholder: 'Търси модел слушалки / IEM…',
   eqAutoEqSearching: 'Търсене…',

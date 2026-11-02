@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CS
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
-  ChevronDown, ChevronUp, Heart, ListMusic, MicVocal, Moon, MoreHorizontal, Music, Pause, Play, Radio,
+  ChevronDown, ChevronUp, Heart, ListMusic, MicVocal, Moon, MoreHorizontal, Music, Pause, Play, Radio, SlidersHorizontal,
   Repeat, Repeat1, Shuffle, SkipBack, SkipForward, Sunrise,
 } from 'lucide-react';
 import {
@@ -36,6 +36,8 @@ import { allowLandscape } from '@/features/mobileShell/utils/landscape';
 import { isOrbitGuestFollowingHost, useOrbitStore } from '@/features/orbit';
 import MobileQueueSheet from '@/features/mobileShell/components/MobileQueueSheet';
 import MobileAudioOptionsSheet from '@/features/mobileShell/components/MobileAudioOptionsSheet';
+import MobileEqSheet from '@/features/mobileShell/components/MobileEqSheet';
+import { eqActive, useEqStore } from '@/store/eqStore';
 
 /** Height of the seek area, plain bar or waveform alike (px). */
 const SEEK_SLOT_PX = 32;
@@ -185,7 +187,8 @@ export default function MobilePlayer() {
   const transportRef = useRef<HTMLDivElement>(null);
   const playSlotRef = useRef<HTMLSpanElement>(null);
   const moreWasOpenRef = useRef(false);
-  const [sheet, setSheet] = useState<'queue' | 'lyrics' | 'audio' | null>(null);
+  const [sheet, setSheet] = useState<'queue' | 'lyrics' | 'audio' | 'eq' | null>(null);
+  const eqOn = useEqStore(eqActive);
   // Swipe down anywhere (outside the seek bar and chip row) closes the player; sideways
   // across the cover skips, as in most players.
   const swipeRef = useRef<{
@@ -429,6 +432,14 @@ export default function MobilePlayer() {
               </button>
               <button
                 type="button"
+                className={`mobile-footer-btn${eqOn ? ' is-active' : ''}`}
+                onClick={() => setSheet('eq')}
+                aria-label={t('settings.eqTitle')}
+              >
+                <SlidersHorizontal size={22} aria-hidden="true" />
+              </button>
+              <button
+                type="button"
                 className="mobile-footer-btn"
                 onClick={() => setSheet('queue')}
                 aria-label={t('queue.title')}
@@ -461,6 +472,7 @@ export default function MobilePlayer() {
 
       {sheet === 'queue' && <MobileQueueSheet onClose={() => setSheet(null)} />}
       {sheet === 'audio' && <MobileAudioOptionsSheet radio={!!currentRadio} onClose={() => setSheet(null)} />}
+      {sheet === 'eq' && <MobileEqSheet onClose={() => setSheet(null)} />}
       {sheet === 'lyrics' && (
         <MobileSheet title={t('player.lyrics')} onClose={() => setSheet(null)} className="mobile-sheet--tall">
           <LyricsPane currentTrack={currentTrack} />
