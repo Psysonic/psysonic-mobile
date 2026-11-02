@@ -164,6 +164,8 @@ export const settings = {
   eqResetBands: 'Visszaállítás lapra',
   eqPreGain: 'Előerősítés',
   eqResetPreGain: 'Előerősítés visszaállítása',
+  eqCarOff: 'Autóban kikapcsolva, ott az autó hangszínszabályzója érvényes',
+  eqDragHint: 'Érintsen egy sáv fölé vagy alá, és húzza',
   eqAutoEqTitle: 'AutoEQ fejhallgató-kereső',
   eqAutoEqPlaceholder: 'Fejhallgató / IEM modell keresése…',
   eqAutoEqSearching: 'Keresés…',

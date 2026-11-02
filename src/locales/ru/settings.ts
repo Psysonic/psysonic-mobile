@@ -163,6 +163,8 @@ export const settings = {
   eqResetBands: 'Сбросить полосы',
   eqPreGain: 'Предусиление',
   eqResetPreGain: 'Сбросить предусиление',
+  eqCarOff: 'В машине выключен, там действует эквалайзер машины',
+  eqDragHint: 'Коснитесь над полосой или под ней и потяните',
   eqAutoEqTitle: 'AutoEQ — поиск профиля наушников',
   eqAutoEqPlaceholder: 'Модель наушников или IEM…',
   eqAutoEqSearching: 'Поиск…',

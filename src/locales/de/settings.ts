@@ -164,6 +164,8 @@ export const settings = {
   eqResetBands: 'Auf Flat zurücksetzen',
   eqPreGain: 'Vorverstärkung',
   eqResetPreGain: 'Vorverstärkung zurücksetzen',
+  eqCarOff: 'Im Auto aus, dort gilt der EQ des Autos',
+  eqDragHint: 'Über oder unter einem Band tippen und ziehen',
   eqAutoEqTitle: 'AutoEQ Kopfhörer-Suche',
   eqAutoEqPlaceholder: 'Kopfhörer / IEM Modell suchen…',
   eqAutoEqSearching: 'Suche…',

@@ -1673,7 +1673,7 @@ html[data-mobile-app]:has(.mobile-sheet-backdrop) :is(
   opacity: 0.45;
 }
 
-/* Heart, lyrics, queue, more: four icon-only buttons of one size on one line. */
+/* Heart, lyrics, EQ, queue, more: five icon-only buttons of one size on one line. */
 .mobile-player__footer {
   display: flex;
   justify-content: space-around;
@@ -6032,4 +6032,115 @@ html[data-mobile-reordering] .playlist-reorder-hint {
   justify-content: center;
   padding: 3rem 1rem;
   color: var(--text-secondary);
+}
+
+/* EQ sheet from the full-screen player (roadmap #44): one draggable point per band on the curve. */
+.mobile-eq {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.mobile-eq__toggle {
+  padding: 0;
+  border-bottom: none;
+}
+
+.mobile-eq__presets .mobile-chip {
+  flex: none;
+  white-space: nowrap;
+}
+
+.mobile-eq__readout {
+  margin: 0 0 calc(-1 * var(--space-2));
+  min-height: 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.mobile-eq__readout b {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.mobile-eq__curve {
+  position: relative;
+  height: 260px;
+  /* Room for the frequency row under the curve. */
+  margin-bottom: 18px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mobile-eq__curve.is-off {
+  opacity: 0.45;
+}
+
+.mobile-eq__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+}
+
+.mobile-eq__point {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-card);
+  transition: transform 0.12s ease;
+}
+
+.mobile-eq__point.is-active {
+  transform: scale(1.45);
+  background: var(--text-primary);
+}
+
+.mobile-eq__point:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.mobile-eq__freqs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -18px;
+  height: 14px;
+  pointer-events: none;
+}
+
+.mobile-eq__freqs span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.mobile-eq__pregain {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.mobile-eq__pregain input {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.mobile-eq__pregain output {
+  min-width: 64px;
+  text-align: right;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }

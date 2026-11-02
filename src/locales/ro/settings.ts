@@ -163,6 +163,8 @@ export const settings = {
   eqResetBands: 'Resetează la Plat',
   eqPreGain: 'Pre-gain',
   eqResetPreGain: 'Resetează pre-gain',
+  eqCarOff: 'Oprit în mașină, se aplică egalizatorul mașinii',
+  eqDragHint: 'Atinge deasupra sau sub o bandă și trage',
   eqAutoEqTitle: 'Căutare Căști AutoEQ',
   eqAutoEqPlaceholder: 'Caută model căști / IEM…',
   eqAutoEqSearching: 'Se caută…',

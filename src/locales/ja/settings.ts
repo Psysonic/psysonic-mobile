@@ -164,6 +164,8 @@ export const settings = {
   eqResetBands: 'フラットに戻す',
   eqPreGain: 'プリアンプ',
   eqResetPreGain: 'プリアンプをリセット',
+  eqCarOff: '車内ではオフ。車のイコライザーが使われます',
+  eqDragHint: '帯域の上か下に触れてドラッグ',
   eqAutoEqTitle: 'AutoEQ ヘッドホン検索',
   eqAutoEqPlaceholder: 'ヘッドホン / IEM モデルを検索…',
   eqAutoEqSearching: '検索中…',

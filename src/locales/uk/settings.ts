@@ -164,6 +164,8 @@ export const settings = {
   eqResetBands: 'Скинути на плоску криву',
   eqPreGain: 'Попереднє підсилення (Pre-gain)',
   eqResetPreGain: 'Скинути pre-gain',
+  eqCarOff: 'В авто вимкнено, діє еквалайзер авто',
+  eqDragHint: 'Торкніться над смугою або під нею й потягніть',
   eqAutoEqTitle: 'Пошук навушників AutoEQ',
   eqAutoEqPlaceholder: 'Пошук моделі навушників / IEM…',
   eqAutoEqSearching: 'Пошук…',

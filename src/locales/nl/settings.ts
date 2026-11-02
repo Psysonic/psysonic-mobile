@@ -163,6 +163,8 @@ export const settings = {
   eqResetBands: 'Terugzetten naar vlak',
   eqPreGain: 'Voorversterking',
   eqResetPreGain: 'Voorversterking resetten',
+  eqCarOff: 'Uit in de auto, daar geldt de EQ van de auto',
+  eqDragHint: 'Tik boven of onder een band en sleep',
   eqAutoEqTitle: 'AutoEQ Hoofdtelefoon Zoeken',
   eqAutoEqPlaceholder: 'Zoek hoofdtelefoon / IEM model…',
   eqAutoEqSearching: 'Zoeken…',

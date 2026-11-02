@@ -163,6 +163,8 @@ export const settings = {
   eqResetBands: 'Restablecer a Plano',
   eqPreGain: 'Pre-ganancia',
   eqResetPreGain: 'Restablecer pre-ganancia',
+  eqCarOff: 'Apagado en el coche, se usa el ecualizador del coche',
+  eqDragHint: 'Toca encima o debajo de una banda y arrastra',
   eqAutoEqTitle: 'Búsqueda AutoEQ de Auriculares',
   eqAutoEqPlaceholder: 'Buscar modelo de auricular / IEM…',
   eqAutoEqSearching: 'Buscando…',

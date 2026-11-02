@@ -163,6 +163,8 @@ export const settings = {
   eqResetBands: 'Tilbakestill til standard',
   eqPreGain: 'Forforsterkning',
   eqResetPreGain: 'Tilbakestill forforsterkning',
+  eqCarOff: 'Av i bilen, bilens egen EQ gjelder',
+  eqDragHint: 'Trykk over eller under et bånd og dra',
   eqAutoEqTitle: 'AutoEQ hodetelefonoppslag',
   eqAutoEqPlaceholder: 'Søk etter hodetelefon- / IEM-modell…',
   eqAutoEqSearching: 'Søker…',

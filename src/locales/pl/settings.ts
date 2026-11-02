@@ -164,6 +164,8 @@ export const settings = {
   eqResetBands: 'Wyzeruj pasma',
   eqPreGain: 'Wzmocnienie wstępne',
   eqResetPreGain: 'Resetuj wzmocnienie wstępne',
+  eqCarOff: 'Wyłączony w samochodzie, działa korektor samochodu',
+  eqDragHint: 'Dotknij nad lub pod pasmem i przeciągnij',
   eqAutoEqTitle: 'Wyszukiwarka słuchawek AutoEQ',
   eqAutoEqPlaceholder: 'Wyszukaj model słuchawek / IEM…',
   eqAutoEqSearching: 'Wyszukiwanie…',

@@ -164,6 +164,8 @@ export const settings = {
   eqResetBands: 'Επαναφορά σε Flat',
   eqPreGain: 'Προ-ενίσχυση',
   eqResetPreGain: 'Επαναφορά προ-ενίσχυσης',
+  eqCarOff: 'Ανενεργός στο αυτοκίνητο, ισχύει ο EQ του αυτοκινήτου',
+  eqDragHint: 'Αγγίξτε πάνω ή κάτω από μια μπάντα και σύρετε',
   eqAutoEqTitle: 'Αναζήτηση AutoEQ ακουστικών',
   eqAutoEqPlaceholder: 'Αναζήτηση ακουστικών / IEM μοντέλου…',
   eqAutoEqSearching: 'Αναζήτηση…',
