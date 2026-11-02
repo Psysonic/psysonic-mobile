@@ -24,7 +24,7 @@ import { albumCoverRefForSong } from '@/cover/ref';
 import { showToast } from '@/lib/dom/toast';
 import { orbitGuestSuggestsQueueAdds } from '@/store/orbitRuntime';
 import { IS_MOBILE_SHELL } from '@/lib/util/platform';
-import { rememberSearchReturn } from '@/features/mobileShell/utils/searchReturn';
+import { rememberSearchReturn } from '@/features/mobileShell';
 import { useOrbitSongRowBehavior } from '@/features/orbit';
 import { albumArtistDisplayName } from '@/features/album';
 import { useShareSearch } from '@/features/search/hooks/useShareSearch';

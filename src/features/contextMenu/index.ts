@@ -6,3 +6,5 @@
  * internal to the subsystem, so nothing is re-exported here.
  */
 export {};
+/** Touch shell: the selection bar offers the same "Add to playlist" submenu. */
+export { AddToPlaylistSubmenu } from './components/ContextMenu';

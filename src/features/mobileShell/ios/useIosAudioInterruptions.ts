@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { usePlayerStore } from '@/features/playback';
 import { reopenAudioOutput } from '@/features/mobileShell/utils/reopenAudioOutput';
-import { RADIO_STARTING_EVENT } from '@/features/playback/store/radioPlayer';
+import { RADIO_STARTING_EVENT } from '@/features/playback';
 
 /** How long after a station starts an interruption is its own audio taking over (seen: 2 s). */
 const RADIO_TAKEOVER_MS = 5000;

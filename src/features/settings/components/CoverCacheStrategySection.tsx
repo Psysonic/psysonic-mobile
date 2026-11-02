@@ -17,7 +17,7 @@ import { clearDiskSrcCacheForServer } from '@/cover/diskSrcCache';
 import { serverListDisplayLabel } from '@/lib/server/serverDisplayName';
 import { serverIndexKeyForProfile } from '@/lib/server/serverIndexKey';
 import { IS_MOBILE_SHELL } from '@/lib/util/platform';
-import { useMobileActionSheetStore } from '@/features/mobileShell/store/mobileActionSheetStore';
+import { useMobileActionSheetStore } from '@/features/mobileShell';
 import { showToast } from '@/lib/dom/toast';
 import { formatBytes } from '@/lib/format/formatBytes';
 import { clearImageCache, getImageCacheSize } from '@/cover';

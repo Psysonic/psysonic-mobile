@@ -40,6 +40,7 @@ vi.mock('@/features/playback', () => ({
   withQueueSource: mocks.withQueueSource,
   fetchGenreCatalog: vi.fn(async () => []),
   fetchScopedGenreCatalog: vi.fn(async () => []),
+  fetchGenreTracksForPlayback: mocks.fetchGenreTracksForPlayback,
 }));
 vi.mock('@/features/home', () => ({ loadHomeChronologicalFeed: mocks.loadHomeChronologicalFeed }));
 vi.mock('@/features/playlist', () => ({
@@ -73,9 +74,10 @@ vi.mock('@/lib/api/subsonicLibrary', async importOriginal => ({
   getAlbumListForServer: mocks.getAlbumListForServer,
 }));
 vi.mock('@/lib/api/subsonicRadio', () => ({ getInternetRadioStationsForServer: mocks.getInternetRadioStationsForServer }));
-vi.mock('@/features/playback/utils/playback/genreBrowsePlayback', () => ({ fetchGenreTracksForPlayback: mocks.fetchGenreTracksForPlayback }));
-vi.mock('@/features/randomMix', () => ({ isLuckyMixAvailable: () => mocks.luckyAvailable }));
-vi.mock('@/features/randomMix/utils/luckyMix', () => ({ buildAndPlayLuckyMix: mocks.buildAndPlayLuckyMix }));
+vi.mock('@/features/randomMix', () => ({
+  isLuckyMixAvailable: () => mocks.luckyAvailable,
+  buildAndPlayLuckyMix: mocks.buildAndPlayLuckyMix,
+}));
 vi.mock('@/store/authStore', () => ({
   useAuthStore: {
     getState: () => ({ servers: [], activeServerId: 'srv', ...mocks.auth, setInfiniteQueueEnabled: mocks.setInfiniteQueueEnabled }),

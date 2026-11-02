@@ -33,7 +33,6 @@ import {
   setRadioFetching,
 } from '@/features/playback/store/radioSessionState';
 import { finalizePlayQueueAtTrackEnd } from '@/features/playback/store/queueSync';
-import { topUpInfiniteQueueAhead } from '@/features/playback/store/infiniteQueueTopUp';
 import { applySkipStarOnManualNext } from '@/features/playback/store/skipStarRating';
 import type { SubsonicSong } from '@/lib/api/subsonicTypes';
 import {
@@ -97,6 +96,49 @@ function stopAtNaturalQueueEnd(set: SetState, get: GetState): void {
     void finalizePlayQueueAtTrackEnd(queueItems, currentTrack);
   }
   get().stop();
+}
+
+/**
+ * Infinite queue: when the song at `playingIdx` has started and ≤ 2 auto-added songs
+ * remain after it, append 5 more, so the queue never runs dry without a visible loading
+ * pause. Called by `next` and, in the touch shell, by the gapless advance too.
+ *
+ * Skipped while in Orbit — the host's queue is the source of truth there, and any silent
+ * local extension would either drift this client off the host or pop the bulk-add modal
+ * at the next track-end fallback.
+ */
+export function topUpInfiniteQueueAhead(
+  set: SetState,
+  get: GetState,
+  playingIdx: number,
+  playingTrack: Track,
+): void {
+  const { queueItems, repeatMode } = get();
+  const { infiniteQueueEnabled } = useAuthStore.getState();
+  if (!infiniteQueueEnabled || repeatMode !== 'off' || isInfiniteQueueFetching() || isInOrbitSession()) return;
+  const remainingAuto = queueItems.slice(playingIdx + 1).filter(r => r.autoAdded).length;
+  if (remainingAuto > 2) return;
+  const topUpGeneration = getPlayGeneration();
+  const topUpServerId = playbackProfileIdForTrack(playingTrack, queueItems[playingIdx]);
+  setInfiniteQueueFetching(true);
+  const existingIdentities = new Set(queueItems.map(queueItemIdentityKey));
+  buildInfiniteQueueCandidates(playingTrack, topUpServerId, existingIdentities, 5).then(newTracks => {
+    // Re-check at resolution time — the user may have joined
+    // an Orbit session between scheduling and resolving.
+    if (isInOrbitSession() || getPlayGeneration() !== topUpGeneration) return;
+    if (newTracks.length > 0) {
+      // Pin before set so the appended refs carry the canonical server
+      // key; without this the auto-added rows render as '…' / 0:00
+      // when the queue was populated without a queue-replacing playTrack
+      // (see PR #892).
+      ensureQueueServerPinned(newTracks);
+      set(state => {
+        if (topUpServerId) seedQueueResolver(topUpServerId, newTracks);
+        const newItems = [...state.queueItems, ...toQueueItemRefs(topUpServerId, newTracks)];
+        return { queueItems: newItems };
+      });
+    }
+  }).catch(() => {}).finally(() => { setInfiniteQueueFetching(false); });
 }
 
 /**

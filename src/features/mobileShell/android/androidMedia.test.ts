@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 const { emitMock } = vi.hoisted(() => ({ emitMock: vi.fn() }));
 vi.mock('@tauri-apps/api/event', () => ({ emit: emitMock }));
 
-import { coverPathFromUrl, installAndroidMediaCommands } from './androidMedia';
+import { installAndroidMediaCommands } from './androidMedia';
+import { coverPathFromUrl } from '@/lib/api/androidMediaHost';
 
 describe('coverPathFromUrl', () => {
   it('turns a cached cover file URL into its path', () => {

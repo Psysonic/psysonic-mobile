@@ -7,8 +7,7 @@
  */
 import { carPlayPlay } from '@/features/mobileShell/car/carplayContent';
 import { usePlayerStore } from '@/features/playback';
-import { resolvePlaylistTracks } from '@/features/playlist/utils/resolvePlaylistTracks';
-import { playPlaylistAll, shufflePlaylistAll } from '@/features/playlist/utils/playlistBulkPlayActions';
+import { playPlaylistAll, resolvePlaylistTracks, shufflePlaylistAll } from '@/features/playlist';
 import { frontendDebugLog } from '@/lib/api/debugLog';
 import { IS_ANDROID } from '@/lib/util/platform';
 import { sanitizeAlarms, useAlarmStore, type Alarm } from './alarmStore';

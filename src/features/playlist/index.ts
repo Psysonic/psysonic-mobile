@@ -56,3 +56,6 @@ export * from './utils/runPlaylistZipDownload';
 export * from './utils/spotifyCsvImport';
 export * from './utils/spotifyCsvMatch';
 export * from './utils/startPlaylistRowDrag';
+/** Touch shell: the alarm plays a playlist. */
+export { playPlaylistAll, shufflePlaylistAll } from './utils/playlistBulkPlayActions';
+export { usePlaylistStore } from './store/playlistStore';

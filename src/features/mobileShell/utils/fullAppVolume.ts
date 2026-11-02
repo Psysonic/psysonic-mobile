@@ -1,4 +1,4 @@
-import { usePlayerStore } from '@/features/playback/store/playerStore';
+import { usePlayerStore } from '@/features/playback';
 
 /**
  * On the iPhone the volume buttons set how loud the app plays, and the touch shell has no

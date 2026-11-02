@@ -33,9 +33,9 @@ import {
 import { getAlbumListForServer, getRandomSongsForServer } from '@/lib/api/subsonicLibrary';
 import { getInternetRadioStationsForServer } from '@/lib/api/subsonicRadio';
 import type { InternetRadioStation, SubsonicAlbum, SubsonicSong } from '@/lib/api/subsonicTypes';
-import { fetchGenreTracksForPlayback } from '@/features/playback/utils/playback/genreBrowsePlayback';
+import { fetchGenreTracksForPlayback } from '@/features/playback';
 import { isLuckyMixAvailable } from '@/features/randomMix';
-import { buildAndPlayLuckyMix } from '@/features/randomMix/utils/luckyMix';
+import { buildAndPlayLuckyMix } from '@/features/randomMix';
 import { deriveEffectiveLibraryBrowseServerIds } from '@/lib/library/libraryBrowseScope';
 import { songToTrack } from '@/lib/media/songToTrack';
 import type { Track } from '@/lib/media/trackTypes';

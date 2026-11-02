@@ -8,7 +8,7 @@ import { openExternalUrl as openUrl } from '@/lib/api/externalLink';
 import { useAuthStore } from '@/store/authStore';
 import type { ClockFormat, DebugLoggingDepth, LoggingMode } from '@/store/authStoreTypes';
 import { MobileSheet } from '@/features/mobileShell';
-import { useMobileActionSheetStore } from '@/features/mobileShell/store/mobileActionSheetStore';
+import { useMobileActionSheetStore } from '@/features/mobileShell';
 import SettingsSubSection from '@/features/settings/components/SettingsSubSection';
 import LicensesPanel from '@/features/settings/components/LicensesPanel';
 import { BackupSection } from '@/features/settings/components/BackupSection';
