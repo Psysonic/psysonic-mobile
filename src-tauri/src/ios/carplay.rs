@@ -190,6 +190,8 @@ define_class!(
             crate::app_eprintln!("[carplay] connected");
             if let Some(app) = APP.get() {
                 crate::ios::audio_session::car_connected(app);
+                // The web layer keeps the EQ out while a car is connected (eqStore `carActive`).
+                let _ = app.emit("carplay:connection", true);
             }
             let retained =
                 unsafe { Retained::retain(controller as *const AnyObject as *mut AnyObject) };
@@ -204,6 +206,9 @@ define_class!(
         #[unsafe(method(templateApplicationScene:didDisconnectInterfaceController:))]
         fn did_disconnect(&self, _scene: &AnyObject, _controller: &AnyObject) {
             crate::app_eprintln!("[carplay] disconnected");
+            if let Some(app) = APP.get() {
+                let _ = app.emit("carplay:connection", false);
+            }
             INTERFACE_CONTROLLER.with(|slot| slot.borrow_mut().take());
             PENDING.with(|pending| pending.borrow_mut().clear());
             SHOWN.with(|shown| shown.borrow_mut().clear());
@@ -305,6 +310,11 @@ pub(crate) fn listen(app: &AppHandle) {
     app.listen_any("carplay:ready", move |_| {
         let _ = ready.run_on_main_thread(|| {
             resend_pending();
+            // A car start connects before the web layer listens: tell it now.
+            let connected = INTERFACE_CONTROLLER.with(|slot| slot.borrow().is_some());
+            if let Some(app) = APP.get() {
+                let _ = app.emit("carplay:connection", connected);
+            }
         });
     });
     // Requests made before the app handle existed (CarPlay connected first).

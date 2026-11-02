@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { emit, listen } from '@tauri-apps/api/event';
 import { usePlayerStore } from '@/features/playback';
 import { useAuthStore } from '@/store/authStore';
+import { useEqStore } from '@/store/eqStore';
 import {
   carPlayCommand,
   carPlayList,
@@ -42,7 +43,8 @@ async function answerList({ requestId, node }: ListRequest): Promise<void> {
  * button (`carplay:command`). Covers missing on disk follow the list
  * (`carplay:list-images`); the buttons' state is pushed as it changes
  * (`carplay:state`). Once listening it reports `carplay:ready`, so requests made
- * during a cold start from the car are sent again.
+ * during a cold start from the car are sent again, along with whether a car is
+ * connected (`carplay:connection`, which keeps the EQ out while it is).
  */
 export function useCarPlayBridge(): void {
   useEffect(() => {
@@ -68,6 +70,13 @@ export function useCarPlayBridge(): void {
       });
       if (cancelled) { offCommand(); return; }
       unlisten.push(offCommand);
+
+      // The car has its own EQ: ours stays out while CarPlay is connected.
+      const offConnection = await listen<boolean>('carplay:connection', ({ payload }) => {
+        useEqStore.getState().setCarActive(payload === true);
+      });
+      if (cancelled) { offConnection(); return; }
+      unlisten.push(offConnection);
 
       const pushState = () => {
         const next = carPlayState();

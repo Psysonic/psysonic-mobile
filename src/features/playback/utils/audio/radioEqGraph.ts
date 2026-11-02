@@ -1,4 +1,4 @@
-import { EQ_BANDS, useEqStore } from '@/store/eqStore';
+import { EQ_BANDS, eqActive, useEqStore } from '@/store/eqStore';
 
 /** Matches Rust `MASTER_HEADROOM` in psysonic-audio helpers. */
 export const RADIO_MASTER_HEADROOM = 0.891_254;
@@ -219,7 +219,7 @@ export function applyRadioOutputVolume(volume: number, graphActive: boolean): vo
 }
 
 export function shouldUseRadioEqGraph(): boolean {
-  return useEqStore.getState().enabled;
+  return eqActive(useEqStore.getState());
 }
 
 /**
@@ -263,8 +263,8 @@ export function getRadioSpectrumAnalyser(): AnalyserNode | null {
 export function bindRadioEqStore(): () => void {
   if (!eqStoreUnsub) {
     const push = (): void => {
-      const { gains, enabled, preGain } = useEqStore.getState();
-      applyRadioEqSettings(gains, enabled, preGain);
+      const state = useEqStore.getState();
+      applyRadioEqSettings(state.gains, eqActive(state), state.preGain);
     };
     push();
     eqStoreUnsub = useEqStore.subscribe((state, prev) => {
@@ -272,6 +272,7 @@ export function bindRadioEqStore(): () => void {
         state.gains !== prev.gains
         || state.enabled !== prev.enabled
         || state.preGain !== prev.preGain
+        || state.carActive !== prev.carActive
       ) {
         push();
       }
