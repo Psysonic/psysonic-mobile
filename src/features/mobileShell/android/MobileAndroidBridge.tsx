@@ -13,6 +13,7 @@ import { keepAwakeForLibraryDownloads } from '@/features/mobileShell/android/lib
 import AlarmRingingScreen from '@/features/mobileShell/alarm/AlarmRingingScreen';
 import { watchKeepScreenOnSetting } from '@/features/mobileShell/store/mobileScreenStore';
 import { androidSetKeepScreenOn } from '@/lib/api/androidMediaHost';
+import { keepEqOutOfAndroidAuto } from '@/features/mobileShell/android/androidCarEq';
 
 /**
  * Touch shell plumbing to the native Android side, the counterpart of `ios/MobileIosBridge`.
@@ -20,7 +21,8 @@ import { androidSetKeepScreenOn } from '@/lib/api/androidMediaHost';
  * buttons set the loudness) and routes the lock screen / notification / headset buttons
  * into the player, answers Android Auto, lets the back key close sheets and menus first, and
  * tops up the infinite queue whenever a song starts, keeps a whole-library download running in the background,
- * keeps the screen on when the setting asks for it. Also the music alarm and its ringing screen.
+ * keeps the screen on when the setting asks for it, keeps the EQ out while Android Auto is connected.
+ * Also the music alarm and its ringing screen.
  */
 export default function MobileAndroidBridge() {
   useEffect(() => { pinFullAppVolume(); }, []);
@@ -35,5 +37,6 @@ export default function MobileAndroidBridge() {
   useEffect(() => (ANDROID_ALARM_AVAILABLE ? installAndroidAlarm() : retireAndroidAlarms()), []);
   useEffect(() => keepAwakeForLibraryDownloads(), []);
   useEffect(() => watchKeepScreenOnSetting(androidSetKeepScreenOn), []);
+  useEffect(() => keepEqOutOfAndroidAuto(), []);
   return ANDROID_ALARM_AVAILABLE ? <AlarmRingingScreen /> : null;
 }

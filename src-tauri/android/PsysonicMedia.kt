@@ -258,11 +258,16 @@ object PsysonicMedia {
    * page's timers (an album, a playlist) would never answer. While the car is there the web
    * view stays running, as it does while music plays.
    */
-  private var carConnected = false
+  @Volatile private var carConnected = false
 
   fun onCarConnected(connected: Boolean) {
     main.post {
       carConnected = connected
+      // The car has its own EQ: the web view keeps ours out while it is there (androidCarEq.ts).
+      webView?.evaluateJavascript(
+        "window.__psyCarConnected && window.__psyCarConnected($connected)",
+        null,
+      )
       refreshPlaybackState()
       if (activityPaused) {
         if (keepWebAwake()) webView?.onResume() else webView?.onPause()
@@ -650,6 +655,10 @@ object PsysonicMedia {
     fun setKeepScreenOn(keepOn: Boolean) {
       main.post { PsysonicMedia.setKeepScreenOn(keepOn) }
     }
+
+    /** Android Auto is connected right now (asked once when the web view starts). */
+    @JavascriptInterface
+    fun isCarConnected(): Boolean = carConnected
 
     @JavascriptInterface
     fun setRadio(radio: Boolean) {

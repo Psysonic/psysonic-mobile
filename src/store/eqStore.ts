@@ -53,6 +53,12 @@ interface EqState {
   rememberPerDevice: boolean;
   /** Saved EQ snapshot per device key (canonical device name; '__default__' = system default). */
   byDevice: Record<string, EqSnapshot>;
+  /**
+   * Mobile: CarPlay or Android Auto is connected. The car has its own EQ, so ours stays out
+   * while it is (`enabled` itself is kept). Not persisted; never set on the desktop.
+   */
+  carActive: boolean;
+  setCarActive: (v: boolean) => void;
 
   setBandGain: (index: number, gain: number) => void;
   setEnabled: (v: boolean) => void;
@@ -70,8 +76,14 @@ interface EqState {
   saveSnapshotFor: (deviceKey: string) => void;
 }
 
+/** Whether the EQ actually runs: switched on and no car connected. */
+export function eqActive(state: { enabled: boolean; carActive: boolean }): boolean {
+  return state.enabled && !state.carActive;
+}
+
 function syncEq(gains: number[], enabled: boolean, preGain: number) {
-  audioSetEq({ gains: gains.map(g => g), enabled, preGain }).catch(() => {});
+  const carActive = useEqStore.getState().carActive;
+  audioSetEq({ gains: gains.map(g => g), enabled: eqActive({ enabled, carActive }), preGain }).catch(() => {});
 }
 
 export const useEqStore = create<EqState>()(
@@ -84,6 +96,13 @@ export const useEqStore = create<EqState>()(
       customPresets: [],
       rememberPerDevice: false,
       byDevice: {},
+      carActive: false,
+
+      setCarActive: (v) => {
+        if (get().carActive === v) return;
+        set({ carActive: v });
+        syncEq(get().gains, get().enabled, get().preGain);
+      },
 
       setBandGain: (index, gain) => {
         const clamped = Math.max(-12, Math.min(12, gain));

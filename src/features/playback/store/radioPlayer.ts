@@ -292,15 +292,18 @@ export function bindRadioEqAttachOnEnable(): () => void {
     };
   }
   eqAttachUnsub = useEqStore.subscribe((state, prev) => {
-    if (!state.enabled || prev.enabled) return;
+    // Effective EQ (on and no car connected, as `eqActive` in eqStore) turned on.
+    const nowOn = state.enabled && !state.carActive;
+    const wasOn = prev.enabled && !prev.carActive;
+    if (!nowOn || wasOn) return;
     const player = usePlayerStore.getState();
     if (!player.currentRadio || radioGraphActive) return;
     radioAudio.crossOrigin = 'anonymous';
     void maybeAttachEqGraph().then(() => {
       if (radioGraphActive) {
         applyOutputVolume(lastVolume);
-        const { gains, enabled, preGain } = useEqStore.getState();
-        applyRadioEqSettings(gains, enabled, preGain);
+        const eq = useEqStore.getState();
+        applyRadioEqSettings(eq.gains, eq.enabled && !eq.carActive, eq.preGain);
       }
     });
   });
