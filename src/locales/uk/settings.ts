@@ -290,6 +290,8 @@ export const settings = {
   clockFormatAuto: 'Авто (системна локаль)',
   clockFormatTwentyFour: '24-годинний',
   clockFormatTwelve: '12-годинний (AM/PM)',
+  keepScreenOn: 'Не вимикати екран',
+  keepScreenOnHint: 'Поки Psysonic відкритий',
   preloadMiniPlayer: 'Попереднє завантаження мініплеєра',
   preloadMiniPlayerDesc: 'Створювати вікно мініплеєра у фоновому режимі при запуску для миттєвого відкриття. Використовує трохи більше пам’яті.',
   miniPlayerCustomTitlebar: 'Приховати рядок заголовка вікна',

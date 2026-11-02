@@ -285,6 +285,8 @@ export const settings = {
   clockFormatAuto: 'Automatisk (systemspråk)',
   clockFormatTwentyFour: '24-timers',
   clockFormatTwelve: '12-timers (AM/PM)',
+  keepScreenOn: 'Hold skjermen på',
+  keepScreenOnHint: 'Mens Psysonic er åpen',
   preloadMiniPlayer: 'Forhåndslast miniavspiller',
   preloadMiniPlayerDesc: 'Bygger miniavspiller-vinduet i bakgrunnen ved appstart slik at det viser innhold umiddelbart ved første åpning. Bruker litt mer minne.',
   miniPlayerCustomTitlebar: 'Skjul tittellinjen i vinduet',

@@ -286,6 +286,8 @@ export const settings = {
   clockFormatAuto: 'Automático (idioma del sistema)',
   clockFormatTwentyFour: '24 horas',
   clockFormatTwelve: '12 horas (AM/PM)',
+  keepScreenOn: 'Mantener la pantalla encendida',
+  keepScreenOnHint: 'Mientras Psysonic esté abierto',
   preloadMiniPlayer: 'Precargar mini reproductor',
   preloadMiniPlayerDesc: 'Crea la ventana del mini reproductor en segundo plano al iniciar la aplicación para que muestre contenido al instante la primera vez que se abre. Consume un poco más de memoria.',
   miniPlayerCustomTitlebar: 'Ocultar la barra de título de la ventana',
