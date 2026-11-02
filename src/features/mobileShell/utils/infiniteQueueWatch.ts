@@ -5,8 +5,7 @@
  * sleeps by the time the queue would run dry, so waiting for the end is too late.
  * Mounted by both phone bridges (`ios/MobileIosBridge`, `android/MobileAndroidBridge`).
  */
-import { usePlayerStore } from '@/features/playback/store/playerStore';
-import { topUpInfiniteQueueAhead } from '@/features/playback/store/infiniteQueueTopUp';
+import { topUpInfiniteQueueAhead, usePlayerStore } from '@/features/playback';
 import { useAuthStore } from '@/store/authStore';
 
 function topUpForCurrentSong(): void {

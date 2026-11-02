@@ -21,3 +21,5 @@ export type { MobileMoreMenuAction, MobileMoreMenuItem, MobileMoreMenuShare } fr
 export { useMobileBack } from './hooks/useMobileBack';
 export { resolveHeldDownload, startTouchDownload } from './utils/meteredDownload';
 export { activeMobileTab, isMobileTabRoot, MOBILE_TAB_ROOTS } from './utils/mobileTabs';
+export { default as MobileThemePreview } from './components/MobileThemePreview';
+export { rememberSearchReturn } from './utils/searchReturn';

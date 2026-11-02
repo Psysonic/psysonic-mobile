@@ -11,3 +11,5 @@
  */
 export { useLuckyMixAvailable, isLuckyMixAvailable } from './hooks/useLuckyMixAvailable';
 export { useLuckyMixStore } from './store/luckyMixStore';
+/** Touch shell: the car lists start a lucky mix. */
+export { buildAndPlayLuckyMix } from './utils/luckyMix';

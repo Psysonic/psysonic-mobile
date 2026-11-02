@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ChevronRight, Pencil, Trash2, UserPlus, Wand2 } from 'lucide-react';
 import type { i18n as I18nType, TFunction } from 'i18next';
 import { MobileSheet } from '@/features/mobileShell';
-import { useMobileActionSheetStore } from '@/features/mobileShell/store/mobileActionSheetStore';
+import { useMobileActionSheetStore } from '@/features/mobileShell';
 import type { NdLibrary, NdUser } from '@/lib/api/navidromeAdmin';
 import { formatLastSeen } from '@/lib/format/userMgmtHelpers';
 

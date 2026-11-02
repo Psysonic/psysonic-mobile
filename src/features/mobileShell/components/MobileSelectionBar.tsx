@@ -3,7 +3,7 @@ import { useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ChevronsRight, ListMusic, ListPlus, MoreHorizontal } from 'lucide-react';
 import { usePlayerStore } from '@/features/playback';
-import { AddToPlaylistSubmenu } from '@/features/contextMenu/components/ContextMenu';
+import { AddToPlaylistSubmenu } from '@/features/contextMenu';
 import MobileSheet from './MobileSheet';
 import type { Track } from '@/lib/media/trackTypes';
 import { useMobileSelectionStore } from '../store/mobileSelectionStore';
