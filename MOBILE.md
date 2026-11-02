@@ -1,13 +1,17 @@
 # Psysonic Mobile (iOS and Android)
 
-This branch (`psysonic-mobile`) holds the Psysonic apps for iPhone/iPad and Android. It is
-**not** part of the main Psysonic repository: Psysonic `main` is merged into this branch at
-regular intervals, and the mobile apps are built from here.
+This repository (`Psysonic/psysonic-mobile`) holds the Psysonic apps for iPhone/iPad and
+Android. Its `main` branch is **not** part of the main Psysonic repository: Psysonic `main`
+(`Psysonic/psysonic`) is merged into it at regular intervals, and the mobile apps are built from
+here. Below, plain `main` means Psysonic `main`; this repository's branch is "mobile `main`".
 
 ## Who works here
 
 Only **Psychotoxical** and **cucadmuh**. Pull requests from anyone else are closed with a
 pointer to the main repository.
+
+Every change reaches mobile `main` through a pull request: one branch per topic, merged by a
+human. Merges of Psysonic `main` come as pull requests too and keep their merge commit.
 
 **Want to contribute a feature?** Please open it against
 [Psysonic main](https://github.com/Psysonic/psysonic). Everything that lands there reaches the
@@ -66,8 +70,9 @@ cheap; a backlog of many PRs is not. So:
    `git fetch psysonic main && git rev-list --count $(git merge-base HEAD psysonic/main)..psysonic/main`.
 2. **Trial run:** `git merge-tree --write-tree --name-only HEAD psysonic/main` lists the
    conflicts without touching the tree.
-3. **Merge:** `git merge --no-ff --no-commit psysonic/main` on `psysonic-mobile` (the remote
-   `psysonic` is read-only; never push to it).
+3. **Merge:** `git merge --no-ff --no-commit psysonic/main` on a branch from mobile `main`
+   (`sync/main-<short sha>`), then a pull request that is merged with a merge commit, not
+   squashed (the remote `psysonic` is read-only; never push to it).
 4. **Resolving conflicts:** desktop behaviour from `main` wins; then put the mobile gate back on
    top. Never resolve by dropping either side wholesale. For the files in the register below,
    read the entry before resolving.
@@ -149,6 +154,9 @@ phone from a desktop backup. Check the touch side when adding one.
   `node src-tauri/android/patch-gen.mjs` before building. Build test APKs with
   `CARGO_PROFILE_DEV_OPT_LEVEL=3 CARGO_PROFILE_DEV_DEBUG=line-tables-only`: unoptimised Rust is
   too slow on a phone (the first library sync blocks every page).
-- Both workflows start by hand only (`gh workflow run <file> --ref psysonic-mobile -f mode=…`).
-  GitHub offers that only for workflow files that also exist on this repository's `main`, so
-  `main` keeps a copy of each; the run itself uses the version on `psysonic-mobile`.
+- Both workflows start by hand only (`gh workflow run <file> -f mode=…`); they run on mobile
+  `main` unless `--ref` names a branch.
+- The desktop workflows that arrive with every merge of Psysonic `main` stay in the tree (deleting
+  them would conflict at each merge). The ones that publish or write are switched off in this
+  repository's Actions settings (`gh workflow disable`); `ci-main`, `eslint`, `frontend-tests`
+  and `rust-tests` stay on and test mobile `main`.
