@@ -286,6 +286,8 @@ export const settings = {
   clockFormatAuto: '自动（跟随系统）',
   clockFormatTwentyFour: '24 小时制',
   clockFormatTwelve: '12 小时制（AM/PM）',
+  keepScreenOn: '保持屏幕常亮',
+  keepScreenOnHint: 'Psysonic 打开时',
   preloadMiniPlayer: '预加载迷你播放器',
   preloadMiniPlayerDesc: '在应用启动时于后台构建迷你播放器窗口，使其首次打开即可立即显示内容。会占用少量额外内存。',
   miniPlayerCustomTitlebar: '隐藏窗口标题栏',

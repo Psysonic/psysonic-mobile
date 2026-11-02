@@ -27,6 +27,7 @@ import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.core.content.ContextCompat
@@ -69,9 +70,25 @@ object PsysonicMedia {
   var downloadText = ""
     private set
 
+  // ── Settings → System → "Keep the screen on" (mobileScreenStore.ts). The window flag only
+  // acts while the activity is in front; a new activity gets it again in `attach`.
+  private var keepScreenOn = false
+
+  private fun setKeepScreenOn(keepOn: Boolean) {
+    keepScreenOn = keepOn
+    applyKeepScreenOn()
+  }
+
+  private fun applyKeepScreenOn() {
+    val window = activity?.get()?.window ?: return
+    if (keepScreenOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+  }
+
   fun attach(activity: MainActivity, view: WebView) {
     appContext = activity.applicationContext
     this.activity = java.lang.ref.WeakReference(activity)
+    applyKeepScreenOn()
     webView = view
     view.addJavascriptInterface(JsBridge, "PsysonicAndroidMedia")
     // The queue lives in this web view. By default Android demotes its renderer process
@@ -627,6 +644,11 @@ object PsysonicMedia {
     @JavascriptInterface
     fun setBackgroundWork(active: Boolean, title: String, text: String) {
       main.post { runCatching { PsysonicMedia.setBackgroundWork(active, title, text) } }
+    }
+
+    @JavascriptInterface
+    fun setKeepScreenOn(keepOn: Boolean) {
+      main.post { PsysonicMedia.setKeepScreenOn(keepOn) }
     }
 
     @JavascriptInterface

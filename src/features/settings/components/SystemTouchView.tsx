@@ -8,7 +8,7 @@ import { openExternalUrl as openUrl } from '@/lib/api/externalLink';
 import { useAuthStore } from '@/store/authStore';
 import type { ClockFormat, DebugLoggingDepth, LoggingMode } from '@/store/authStoreTypes';
 import { MobileSheet } from '@/features/mobileShell';
-import { useMobileActionSheetStore } from '@/features/mobileShell';
+import { useMobileActionSheetStore, useMobileScreenStore } from '@/features/mobileShell';
 import SettingsSubSection from '@/features/settings/components/SettingsSubSection';
 import LicensesPanel from '@/features/settings/components/LicensesPanel';
 import { BackupSection } from '@/features/settings/components/BackupSection';
@@ -37,6 +37,8 @@ export function SystemTouchView({
   const setLoggingMode = useAuthStore(s => s.setLoggingMode);
   const debugLoggingDepth = useAuthStore(s => s.debugLoggingDepth);
   const setDebugLoggingDepth = useAuthStore(s => s.setDebugLoggingDepth);
+  const keepScreenOn = useMobileScreenStore(s => s.keepScreenOn);
+  const setKeepScreenOn = useMobileScreenStore(s => s.setKeepScreenOn);
   const [sheet, setSheet] = useState<'contributors' | 'licenses' | null>(null);
 
   const clockOptions: Option[] = [
@@ -78,6 +80,22 @@ export function SystemTouchView({
           {pickRow(t('settings.clockFormat'), labelOf(clockOptions, clockFormat), () => void choose(
             t('settings.clockFormat'), clockOptions, clockFormat, v => setClockFormat(v as ClockFormat),
           ))}
+          <div className="mobile-list-row">
+            <span className="mobile-list-row__text">
+              <span className="mobile-list-row__label" id="mobile-keep-screen-on-label">{t('settings.keepScreenOn')}</span>
+              <span className="mobile-list-row__sub">{t('settings.keepScreenOnHint')}</span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={keepScreenOn}
+              aria-labelledby="mobile-keep-screen-on-label"
+              className="mobile-switch"
+              onClick={() => setKeepScreenOn(!keepScreenOn)}
+            >
+              <span className="mobile-switch__thumb" />
+            </button>
+          </div>
         </div>
       </SettingsSubSection>
 
