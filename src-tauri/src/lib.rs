@@ -1349,6 +1349,16 @@ mod specta_export {
                 }
                 collect_command_fns(&path, out);
             } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+                // Mobile: `*_mobile.rs` holds stand-ins for desktop-only commands under the
+                // same names, compiled instead of them (see MOBILE.md "Deliberate
+                // differences"); the desktop file is the one this guard checks.
+                if path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.ends_with("_mobile.rs"))
+                {
+                    continue;
+                }
                 let Ok(src) = std::fs::read_to_string(&path) else {
                     continue;
                 };
