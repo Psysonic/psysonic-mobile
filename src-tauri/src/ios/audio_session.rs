@@ -10,6 +10,11 @@
 //! the running output stalled on the old route, so the engine reopens it the way
 //! it does after a system resume: the track carries on where it was.
 //!
+//! An interruption can begin without ever ending (seen 02.11. right after Bluetooth headphones
+//! went back into their case): iOS has turned the session off, and everything plays into
+//! silence. Pressing play then asks for the session again (`ios-audio:reactivate`), as Apple
+//! expects an app to do.
+//!
 //! The web layer also learns which output plays (`ios-audio:output`, answered again on
 //! `ios-audio:output-request`), to keep the EQ per device.
 
@@ -130,6 +135,13 @@ pub(crate) fn observe_interruptions(app: &AppHandle) {
     let output_app = app.clone();
     app.listen_any("ios-audio:output-request", move |_| {
         let _ = output_app.emit("ios-audio:output", current_output());
+    });
+    let reactivate_app = app.clone();
+    app.listen_any("ios-audio:reactivate", move |_| {
+        // Only on this request: a station's own audio also reports as an interruption, and a
+        // route change must not take the session back from it.
+        SESSION_ACTIVE.store(false, Ordering::Relaxed);
+        retry_activation(&reactivate_app);
     });
     let center = NSNotificationCenter::defaultCenter();
 

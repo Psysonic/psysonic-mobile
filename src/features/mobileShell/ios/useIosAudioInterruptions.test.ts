@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { emit } from '@tauri-apps/api/event';
 import { emitTauriEvent, tauriMockListenerCount } from '@/test/mocks/tauri';
 import { usePlayerStore } from '@/features/playback/store/playerStore';
 import { useAuthStore } from '@/store/authStore';
@@ -28,6 +29,7 @@ describe('useIosAudioInterruptions', () => {
     pause.mockClear();
     resume.mockClear();
     audio.audioSetDevice.mockClear();
+    vi.mocked(emit).mockClear();
     useAuthStore.setState({ audioOutputDevice: null });
     usePlayerStore.setState({ isPlaying: true, pause, resume });
   });
@@ -40,6 +42,24 @@ describe('useIosAudioInterruptions', () => {
     await waitFor(() => expect(resume).toHaveBeenCalledOnce());
     expect(audio.audioSetDevice).toHaveBeenCalledWith({ deviceName: null });
     expect(audio.audioSetDevice.mock.invocationCallOrder[0]).toBeLessThan(resume.mock.invocationCallOrder[0]);
+    unmount();
+  });
+
+  it('play after an interruption that never ended asks for the session again, once', async () => {
+    const { unmount } = await mount();
+    await interruption(true);
+    expect(pause).toHaveBeenCalledOnce();
+    await act(async () => { usePlayerStore.getState().resume(); });
+    expect(vi.mocked(emit).mock.calls).toEqual([['ios-audio:reactivate']]);
+    await act(async () => { usePlayerStore.setState({ isPlaying: false }); usePlayerStore.getState().resume(); });
+    expect(vi.mocked(emit)).toHaveBeenCalledOnce();
+    unmount();
+  });
+
+  it('play without an interruption asks for nothing', async () => {
+    const { unmount } = await mount();
+    await act(async () => { usePlayerStore.setState({ isPlaying: false }); usePlayerStore.getState().resume(); });
+    expect(vi.mocked(emit)).not.toHaveBeenCalled();
     unmount();
   });
 

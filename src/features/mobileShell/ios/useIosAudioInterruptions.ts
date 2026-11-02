@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { listen } from '@tauri-apps/api/event';
+import { emit, listen } from '@tauri-apps/api/event';
 import { usePlayerStore } from '@/features/playback';
 import { reopenAudioOutput } from '@/features/mobileShell/utils/reopenAudioOutput';
 import { RADIO_STARTING_EVENT } from '@/features/playback';
@@ -19,7 +19,10 @@ interface InterruptionPayload {
  * player pauses with them; when the interruption ends the output is reopened and
  * the player resumes what was playing before, only when iOS allows it
  * (`shouldResume`), like Apple Music. A lost route pauses for good. If iOS never
- * reports the end, coming back to the app reopens the output without playing.
+ * reports the end, coming back to the app reopens the output without playing, and pressing
+ * play asks the native side to turn the session on again (`ios-audio:reactivate`): taking
+ * Bluetooth headphones off ends in an interruption that never ends (log 02.11.), and
+ * everything played into silence until they came back.
  */
 export function useIosAudioInterruptions(): void {
   useEffect(() => {
@@ -56,6 +59,13 @@ export function useIosAudioInterruptions(): void {
     };
     document.addEventListener('visibilitychange', onVisible);
 
+    const offPlay = usePlayerStore.subscribe((state, prev) => {
+      if (!interrupted || !state.isPlaying || prev.isPlaying) return;
+      interrupted = false;
+      resumeAfterInterruption = false;
+      void emit('ios-audio:reactivate');
+    });
+
     const setup = async () => {
       const offInterruption = await listen<InterruptionPayload>('ios-audio:interruption', ({ payload }) => {
         if (payload.began) {
@@ -84,6 +94,7 @@ export function useIosAudioInterruptions(): void {
     return () => {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
+      offPlay();
       window.removeEventListener(RADIO_STARTING_EVENT, onRadioStarting);
       unlisten.forEach(off => off());
     };
