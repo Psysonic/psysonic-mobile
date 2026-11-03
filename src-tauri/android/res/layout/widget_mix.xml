@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mix widget (PsysonicWidgets): starts the mix the app offers (Lucky Mix or random mix). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    style="@style/PsyWidgetRoot"
+    android:orientation="vertical">
+
+  <ImageView
+      android:id="@+id/widget_mix_icon"
+      style="@style/PsyWidgetPlayButton"
+      android:layout_width="48dp"
+      android:layout_height="48dp"
+      android:padding="12dp"
+      android:src="@drawable/ic_widget_shuffle" />
+
+  <FrameLayout
+      android:layout_width="1dp"
+      android:layout_height="0dp"
+      android:layout_weight="1" />
+
+  <TextView
+      android:id="@+id/widget_title"
+      style="@style/PsyWidgetTitle"
+      android:textSize="16sp"
+      android:text="@string/widget_mix" />
+
+  <TextView
+      android:id="@+id/widget_artist"
+      style="@style/PsyWidgetSubtitle"
+      android:maxLines="2"
+      android:singleLine="false" />
+</LinearLayout>

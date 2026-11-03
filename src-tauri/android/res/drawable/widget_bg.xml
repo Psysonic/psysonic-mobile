@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget background (PsysonicWidgets): the app's default dark theme. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+  <solid android:color="@color/psy_widget_base" />
+  <corners android:radius="@dimen/psy_widget_radius" />
+</shape>

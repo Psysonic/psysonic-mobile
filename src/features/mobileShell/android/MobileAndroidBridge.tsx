@@ -16,6 +16,7 @@ import { androidSetKeepScreenOn } from '@/lib/api/androidMediaHost';
 import { keepEqOutOfAndroidAuto } from '@/features/mobileShell/android/androidCarEq';
 import { resumeWhenCarReconnects } from '@/features/mobileShell/utils/carResume';
 import { keepEqPerAndroidOutput } from '@/features/mobileShell/android/androidEqOutput';
+import { installAndroidWidgets } from '@/features/mobileShell/android/androidWidgets';
 
 /**
  * Touch shell plumbing to the native Android side, the counterpart of `ios/MobileIosBridge`.
@@ -25,7 +26,8 @@ import { keepEqPerAndroidOutput } from '@/features/mobileShell/android/androidEq
  * tops up the infinite queue whenever a song starts, keeps a whole-library download running in the background,
  * keeps the screen on when the setting asks for it, keeps the EQ out while Android Auto is connected,
  * with the setting on carries on music the car stopped when Android Auto connects again, and
- * keeps the EQ per output when that is switched on.
+ * keeps the EQ per output when that is switched on, and feeds the home screen widgets and
+ * Quick Settings tiles.
  * Also the music alarm and its ringing screen.
  */
 export default function MobileAndroidBridge() {
@@ -44,5 +46,6 @@ export default function MobileAndroidBridge() {
   useEffect(() => keepEqOutOfAndroidAuto(), []);
   useEffect(() => resumeWhenCarReconnects(), []);
   useEffect(() => keepEqPerAndroidOutput(), []);
+  useEffect(() => installAndroidWidgets(), []);
   return ANDROID_ALARM_AVAILABLE ? <AlarmRingingScreen /> : null;
 }

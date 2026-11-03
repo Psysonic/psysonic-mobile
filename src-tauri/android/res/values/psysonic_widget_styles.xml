@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shared look of the home screen widgets (layout/widget_*.xml). -->
+<resources>
+  <style name="PsyWidgetRoot">
+    <item name="android:layout_width">match_parent</item>
+    <item name="android:layout_height">match_parent</item>
+    <item name="android:background">@drawable/widget_bg</item>
+    <item name="android:clipToOutline">true</item>
+    <item name="android:padding">14dp</item>
+  </style>
+  <style name="PsyWidgetTitle">
+    <item name="android:layout_width">match_parent</item>
+    <item name="android:layout_height">wrap_content</item>
+    <item name="android:textColor">@color/psy_widget_text</item>
+    <item name="android:textStyle">bold</item>
+    <item name="android:singleLine">true</item>
+    <item name="android:ellipsize">end</item>
+  </style>
+  <style name="PsyWidgetSubtitle">
+    <item name="android:layout_width">match_parent</item>
+    <item name="android:layout_height">wrap_content</item>
+    <item name="android:textColor">@color/psy_widget_subtext</item>
+    <item name="android:textSize">13sp</item>
+    <item name="android:singleLine">true</item>
+    <item name="android:ellipsize">end</item>
+  </style>
+  <style name="PsyWidgetLabel">
+    <item name="android:layout_width">match_parent</item>
+    <item name="android:layout_height">wrap_content</item>
+    <item name="android:textColor">@color/psy_widget_accent</item>
+    <item name="android:textSize">12sp</item>
+    <item name="android:textStyle">bold</item>
+    <item name="android:textAllCaps">true</item>
+    <item name="android:singleLine">true</item>
+    <item name="android:ellipsize">end</item>
+  </style>
+  <style name="PsyWidgetPlayButton">
+    <item name="android:background">@drawable/widget_circle</item>
+    <item name="android:src">@drawable/ic_widget_play</item>
+    <item name="android:scaleType">fitCenter</item>
+  </style>
+  <style name="PsyWidgetSkipButton">
+    <item name="android:layout_width">36dp</item>
+    <item name="android:layout_height">36dp</item>
+    <item name="android:padding">6dp</item>
+    <item name="android:scaleType">fitCenter</item>
+  </style>
+  <style name="PsyWidgetProgress" parent="@android:style/Widget.ProgressBar.Horizontal">
+    <item name="android:layout_width">match_parent</item>
+    <item name="android:layout_height">4dp</item>
+    <item name="android:max">1000</item>
+    <item name="android:progressDrawable">@drawable/widget_progress</item>
+  </style>
+</resources>

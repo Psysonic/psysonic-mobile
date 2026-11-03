@@ -22,7 +22,7 @@ mobile apps with the next merge, so desktop, iOS and Android stay in step.
 | Area | iOS only | Android only | Shared by both apps |
 |---|---|---|---|
 | Native (Rust) | `src-tauri/src/ios/` | `src-tauri/src/android/` | everything else in `src-tauri/` behind `cfg(mobile)` |
-| Native (Kotlin) | | `src-tauri/android/*.kt` (activity, media session, playback service, Android Auto) | |
+| Native (Kotlin) | | `src-tauri/android/*.kt` (activity, media session, playback service, Android Auto, home screen widgets and Quick Settings tiles) | |
 | Native (Swift) | `src-tauri/ios/widgets/` (home and lock screen widgets, Control Center controls) | | |
 | Touch UI (React) | `src/features/mobileShell/ios/` | `src/features/mobileShell/android/`, `src/styles/mobile/mobile-android.css` | the rest of `src/features/mobileShell/` and code behind `IS_MOBILE_SHELL` |
 | Build config | `src-tauri/tauri.ios.conf.json`, `src-tauri/Info.ios.plist`, `src-tauri/ios/patch-gen.mjs` (adds the widget extension to the generated Xcode project) | `src-tauri/tauri.android.conf.json`, `src-tauri/android/patch-gen.mjs` (patches the generated Gradle project) | `src-tauri/tauri.conf.json` |

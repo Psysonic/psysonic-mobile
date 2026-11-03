@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Now playing, medium (PsysonicWidgets): cover, title, buttons, progress. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    style="@style/PsyWidgetRoot"
+    android:gravity="center_vertical"
+    android:orientation="vertical">
+
+  <include layout="@layout/widget_now_player" />
+
+  <ProgressBar
+      android:id="@+id/widget_progress"
+      style="@style/PsyWidgetProgress"
+      android:layout_marginTop="10dp" />
+</LinearLayout>

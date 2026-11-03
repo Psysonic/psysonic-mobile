@@ -75,7 +75,13 @@ export function watchWidgetSnapshot(send: (snapshot: WidgetSnapshot) => void): (
   };
 
   // The store changes with every position tick: a flush already waiting takes the change along.
+  // Hidden, the page's timers may not run at all (Android pauses a web view that sat in the
+  // background, and a widget tap plays without waking it), so the change goes out at once.
   const schedule = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      flushInTurn();
+      return;
+    }
     if (timer !== undefined) return;
     timer = setTimeout(() => {
       timer = undefined;

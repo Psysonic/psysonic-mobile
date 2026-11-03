@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_now">Most szól</string>
+  <string name="widget_cover">Borító</string>
+  <string name="widget_mix">Mix</string>
+  <string name="widget_recent">Nemrég játszott</string>
+  <string name="tile_play_pause">Lejátszás / Szünet</string>
+</resources>

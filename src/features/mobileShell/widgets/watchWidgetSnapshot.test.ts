@@ -134,6 +134,20 @@ describe('watchWidgetSnapshot', () => {
     stop();
   });
 
+  it('a hidden page sends at once, without waiting for a timer', async () => {
+    const send = vi.fn();
+    const stop = watchWidgetSnapshot(send);
+    await settle();
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    change({ isPlaying: false });
+    // Promise chains only, no timer: a paused Android web view runs no timers.
+    await vi.advanceTimersByTimeAsync(0);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][0].now.playing).toBe(false);
+    visibility.mockRestore();
+    stop();
+  });
+
   it('nothing goes out after stop', async () => {
     const send = vi.fn();
     const stop = watchWidgetSnapshot(send);

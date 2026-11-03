@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_now">Reproduciendo ahora</string>
+  <string name="widget_cover">Portada</string>
+  <string name="widget_mix">Mix</string>
+  <string name="widget_recent">Reproducidos recientemente</string>
+  <string name="tile_play_pause">Reproducir / Pausa</string>
+</resources>

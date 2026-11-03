@@ -5,7 +5,8 @@
 // - every `*.kt` in this folder into the app's package (our MainActivity replaces the
 //   template's; PsysonicMedia + PsysonicMediaService: lock screen and background play;
 //   PsysonicAutoService: Android Auto; PsysonicDownloadService: whole-library downloads
-//   in the background), and everything under `res/` into the app's res/;
+//   in the background; PsysonicWidgets: home screen widgets and Quick Settings tiles), and
+//   everything under `res/` into the app's res/;
 // - the manifest entries those need (services, Android Auto, permissions);
 // - Gradle dependencies: `androidx.media` (MediaSession, media notification), Media3's
 //   ExoPlayer (PsysonicCarPlayer: Android Auto with the app closed) and the
@@ -145,6 +146,50 @@ if (!manifest.includes(autoMarker)) {
             android:resource="@xml/automotive_app_desc" />
 $1`);
   console.log('[patch-gen] manifest: android auto');
+}
+// Home screen widgets and Quick Settings tiles (PsysonicWidgets, PsysonicWidgetProviders).
+const widgetsMarker = '<!-- psysonic: widgets -->';
+if (!manifest.includes(widgetsMarker)) {
+  const provider = (name, label, info) => `        <receiver
+            android:name=".${name}"
+            android:exported="false"
+            android:label="@string/${label}">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/${info}" />
+        </receiver>`;
+  const tile = (name, label, icon) => `        <service
+            android:name=".${name}"
+            android:exported="true"
+            android:icon="@drawable/${icon}"
+            android:label="@string/${label}"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
+        </service>`;
+  manifest = manifest.replace(appClose, `        ${widgetsMarker}
+${provider('PsysonicCoverWidget', 'widget_cover', 'psysonic_widget_cover')}
+${provider('PsysonicNowWidget', 'widget_now', 'psysonic_widget_now')}
+${provider('PsysonicMixWidget', 'widget_mix', 'psysonic_widget_mix')}
+${provider('PsysonicRecentWidget', 'widget_recent', 'psysonic_widget_recent')}
+        <activity
+            android:name=".PsysonicWidgetActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+${tile('PsysonicPlayTile', 'tile_play_pause', 'ic_tile_play_pause')}
+${tile('PsysonicMixTile', 'widget_mix', 'ic_tile_shuffle')}
+$1`);
+  console.log('[patch-gen] manifest: widgets and tiles');
 }
 // Labels as placeholders, so the beta build (Gradle below) can rename itself.
 for (const [resource, placeholder] of [

@@ -22,6 +22,7 @@ class MainActivity : TauriActivity() {
     super.onCreate(savedInstanceState)
     allowLandscape(false)
     PsysonicAlarm.onActivityIntent(this, intent)
+    PsysonicWidgets.onActivityIntent(intent)
     // Last in the back chain: wry's callback (added later, so asked first) steps the web view
     // back through its history and hands on once there is nothing left. Closing the activity
     // would end the process and the music; a music player goes to the background instead.
@@ -34,20 +35,23 @@ class MainActivity : TauriActivity() {
     })
   }
 
-  /** A ringing alarm opens the running activity again (PsysonicAlarm). */
+  /** A ringing alarm or a widget tap opens the running activity again (PsysonicAlarm, PsysonicWidgets). */
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     setIntent(intent)
     PsysonicAlarm.onActivityIntent(this, intent)
+    PsysonicWidgets.onActivityIntent(intent)
   }
 
   // Lock screen, notification and headset buttons (see PsysonicMedia), the theme's
   // brightness for the system bars (see androidSystemBars.ts), copies of picked files
-  // (see PsysonicFiles) and the music alarm (see PsysonicAlarm).
+  // (see PsysonicFiles), the music alarm (see PsysonicAlarm) and the home screen widgets
+  // (see PsysonicWidgets).
   override fun onWebViewCreate(webView: WebView) {
     shellWebView = webView
     PsysonicMedia.attach(this, webView)
     PsysonicAlarm.attach(this, webView)
+    PsysonicWidgets.attach(this, webView)
     webView.addJavascriptInterface(ShellBridge(this), "PsysonicAndroidShell")
     webView.addJavascriptInterface(PsysonicFiles(applicationContext, webView), "PsysonicAndroidFiles")
     watchMeteredNetwork(webView)
@@ -151,6 +155,12 @@ class MainActivity : TauriActivity() {
   override fun onResume() {
     super.onResume()
     PsysonicMedia.onActivityResumed()
+  }
+
+  /** The web view goes with the activity; widget taps then open the app again. */
+  override fun onDestroy() {
+    PsysonicWidgets.detach(shellWebView)
+    super.onDestroy()
   }
 
 }

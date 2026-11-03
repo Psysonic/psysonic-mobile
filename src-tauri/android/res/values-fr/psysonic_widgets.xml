@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_now">En cours de lecture</string>
+  <string name="widget_cover">Pochette</string>
+  <string name="widget_mix">Mix</string>
+  <string name="widget_recent">Récemment écoutés</string>
+  <string name="tile_play_pause">Lecture / Pause</string>
+</resources>

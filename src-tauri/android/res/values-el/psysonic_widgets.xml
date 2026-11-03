@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_now">Παίζει τώρα</string>
+  <string name="widget_cover">Εξώφυλλο</string>
+  <string name="widget_mix">Μίξη</string>
+  <string name="widget_recent">Παίχτηκαν πρόσφατα</string>
+  <string name="tile_play_pause">Αναπαραγωγή / Παύση</string>
+</resources>

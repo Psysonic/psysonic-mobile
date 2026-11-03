@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home screen widgets and Quick Settings tiles (PsysonicWidgets): names in the widget
+     picker and the tile list, the colours of the app's default dark theme. -->
+<resources>
+  <string name="widget_now">Now Playing</string>
+  <string name="widget_cover">Cover</string>
+  <string name="widget_mix">Mix</string>
+  <string name="widget_recent">Recently Played</string>
+  <string name="tile_play_pause">Play / Pause</string>
+  <color name="psy_widget_base">#1E1E2E</color>
+  <color name="psy_widget_track">#45475A</color>
+  <color name="psy_widget_text">#CDD6F4</color>
+  <color name="psy_widget_subtext">#A6ADC8</color>
+  <color name="psy_widget_accent">#CBA6F7</color>
+  <dimen name="psy_widget_radius">20dp</dimen>
+</resources>

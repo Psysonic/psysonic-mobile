@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round widget buttons; tinted with the theme's accent from Android 12 on. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+  <solid android:color="@color/psy_widget_accent" />
+</shape>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_now">Сега звучи</string>
+  <string name="widget_cover">Обложка</string>
+  <string name="widget_mix">Микс</string>
+  <string name="widget_recent">Наскоро пуснати</string>
+  <string name="tile_play_pause">Пусни / Пауза</string>
+</resources>
