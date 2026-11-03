@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   player: {} as Record<string, unknown>,
-  togglePlay: vi.fn(),
+  pause: vi.fn(),
+  resume: vi.fn(),
   next: vi.fn(),
   previous: vi.fn(),
   carPlayPlay: vi.fn(async () => {}),
@@ -15,7 +16,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/features/playback', () => ({
   usePlayerStore: {
     getState: () => ({
-      togglePlay: mocks.togglePlay,
+      pause: mocks.pause,
+      resume: mocks.resume,
       next: mocks.next,
       previous: mocks.previous,
       queueItems: [],
@@ -138,15 +140,24 @@ describe('loadWidgetRecentAlbums', () => {
 describe('runWidgetCommand', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.player = {};
   });
 
   it('play/pause, next and previous go to the player', async () => {
     await runWidgetCommand('toggle');
     await runWidgetCommand('next');
     await runWidgetCommand('previous');
-    expect(mocks.togglePlay).toHaveBeenCalledTimes(1);
+    expect(mocks.resume).toHaveBeenCalledTimes(1);
     expect(mocks.next).toHaveBeenCalledWith(true);
     expect(mocks.previous).toHaveBeenCalledTimes(1);
+  });
+
+  it('play/pause pauses a playing song, each tap again (no timer between taps)', async () => {
+    mocks.player = { isPlaying: true };
+    await runWidgetCommand('toggle');
+    await runWidgetCommand('toggle');
+    expect(mocks.pause).toHaveBeenCalledTimes(2);
+    expect(mocks.resume).not.toHaveBeenCalled();
   });
 
   it('the mix button starts the mix the car lists would', async () => {
@@ -161,7 +172,8 @@ describe('runWidgetCommand', () => {
 
   it('an unknown action does nothing', async () => {
     await runWidgetCommand('rewind');
-    expect(mocks.togglePlay).not.toHaveBeenCalled();
+    expect(mocks.pause).not.toHaveBeenCalled();
+    expect(mocks.resume).not.toHaveBeenCalled();
     expect(mocks.carPlayPlay).not.toHaveBeenCalled();
     expect(mocks.carPlayPlayList).not.toHaveBeenCalled();
   });

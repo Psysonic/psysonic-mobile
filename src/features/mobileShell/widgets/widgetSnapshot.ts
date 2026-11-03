@@ -10,7 +10,8 @@ import { attachCarPlayCovers, type CarPlayCoverSource } from '@/features/mobileS
 
 /**
  * What the home and lock screen widgets show, built here for both phones: the native side
- * only copies the covers and draws (iOS `src-tauri/src/ios/widgets.rs`). `image` is a path in
+ * only copies the covers and draws (iOS `src-tauri/src/ios/widgets.rs`, Android
+ * `src-tauri/android/PsysonicWidgets.kt`). `image` is a path in
  * the cover cache.
  */
 export interface WidgetSnapshot {
@@ -180,7 +181,12 @@ export async function buildWidgetSnapshot(recent: WidgetAlbum[]): Promise<Widget
 export async function runWidgetCommand(action: string): Promise<void> {
   const player = usePlayerStore.getState();
   switch (action) {
-    case 'toggle': player.togglePlay(); return;
+    // Not `togglePlay`: its guard against double taps is released by a timer, and a paused
+    // Android web view may run none, which would leave every later tap ignored.
+    case 'toggle':
+      if (player.isPlaying) player.pause();
+      else player.resume();
+      return;
     case 'next': player.next(true); return;
     case 'previous': player.previous(); return;
     case 'mix': await carPlayPlay(carPlayMixItem().node); return;
