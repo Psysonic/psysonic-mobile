@@ -105,6 +105,16 @@ if (yml.includes(MARKER)) {
     ...(team ? [`        DEVELOPMENT_TEAM: ${team}`] : []),
     '        SKIP_INSTALL: true',
     '        ENABLE_BITCODE: false',
+    // `tauri ios build` with the API key archives without signing and then gives only the
+    // app binary a stand-in signature carrying its entitlements; the export re-signs from
+    // those. The extension needs the same, or it loses the App Group.
+    '    postBuildScripts:',
+    '      - name: Keep the entitlements for the export',
+    '        basedOnDependencyAnalysis: false',
+    '        script: |',
+    '          if [ "$CODE_SIGNING_ALLOWED" = "NO" ]; then',
+    `            /usr/bin/codesign --force --sign - --entitlements "$PROJECT_DIR/${EXTENSION}/${EXTENSION}.entitlements" "$TARGET_BUILD_DIR/$WRAPPER_NAME"`,
+    '          fi',
     '    dependencies:',
     '      - sdk: WidgetKit.framework',
     '      - sdk: SwiftUI.framework',
