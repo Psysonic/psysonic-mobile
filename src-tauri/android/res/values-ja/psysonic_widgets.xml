@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_now">再生中</string>
+  <string name="widget_cover">ジャケット</string>
+  <string name="widget_mix">ミックス</string>
+  <string name="widget_recent">最近再生</string>
+  <string name="tile_play_pause">再生 / 一時停止</string>
+</resources>

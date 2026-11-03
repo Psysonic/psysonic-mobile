@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_now">Nu aan het spelen</string>
+  <string name="widget_cover">Hoes</string>
+  <string name="widget_mix">Mix</string>
+  <string name="widget_recent">Recent afgespeeld</string>
+  <string name="tile_play_pause">Afspelen / Pauzeren</string>
+</resources>

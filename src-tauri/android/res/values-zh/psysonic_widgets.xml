@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_now">正在播放</string>
+  <string name="widget_cover">封面</string>
+  <string name="widget_mix">混音</string>
+  <string name="widget_recent">最近播放</string>
+  <string name="tile_play_pause">播放 / 暂停</string>
+</resources>

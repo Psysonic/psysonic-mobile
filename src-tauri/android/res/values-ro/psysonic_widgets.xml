@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_now">Se redă acum</string>
+  <string name="widget_cover">Copertă</string>
+  <string name="widget_mix">Mix</string>
+  <string name="widget_recent">Redate recent</string>
+  <string name="tile_play_pause">Redă / Pauză</string>
+</resources>

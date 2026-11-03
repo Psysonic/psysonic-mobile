@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recently played (PsysonicWidgets): four albums, a tap plays one. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    style="@style/PsyWidgetRoot"
+    android:orientation="vertical">
+
+  <TextView
+      android:id="@+id/widget_label"
+      style="@style/PsyWidgetTitle"
+      android:textSize="14sp"
+      android:text="@string/widget_recent" />
+
+  <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_marginTop="10dp"
+      android:orientation="horizontal">
+
+    <LinearLayout
+        android:id="@+id/widget_recent_1"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="0dp"
+        android:orientation="vertical">
+
+      <ImageView
+          android:id="@+id/widget_recent_cover_1"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:adjustViewBounds="true"
+          android:scaleType="fitCenter"
+          android:importantForAccessibility="no" />
+
+      <TextView
+          android:id="@+id/widget_recent_title_1"
+          style="@style/PsyWidgetSubtitle"
+          android:layout_marginTop="4dp"
+          android:textColor="@color/psy_widget_text"
+          android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_recent_2"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="10dp"
+        android:orientation="vertical">
+
+      <ImageView
+          android:id="@+id/widget_recent_cover_2"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:adjustViewBounds="true"
+          android:scaleType="fitCenter"
+          android:importantForAccessibility="no" />
+
+      <TextView
+          android:id="@+id/widget_recent_title_2"
+          style="@style/PsyWidgetSubtitle"
+          android:layout_marginTop="4dp"
+          android:textColor="@color/psy_widget_text"
+          android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_recent_3"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="10dp"
+        android:orientation="vertical">
+
+      <ImageView
+          android:id="@+id/widget_recent_cover_3"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:adjustViewBounds="true"
+          android:scaleType="fitCenter"
+          android:importantForAccessibility="no" />
+
+      <TextView
+          android:id="@+id/widget_recent_title_3"
+          style="@style/PsyWidgetSubtitle"
+          android:layout_marginTop="4dp"
+          android:textColor="@color/psy_widget_text"
+          android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_recent_4"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="10dp"
+        android:orientation="vertical">
+
+      <ImageView
+          android:id="@+id/widget_recent_cover_4"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:adjustViewBounds="true"
+          android:scaleType="fitCenter"
+          android:importantForAccessibility="no" />
+
+      <TextView
+          android:id="@+id/widget_recent_title_4"
+          style="@style/PsyWidgetSubtitle"
+          android:layout_marginTop="4dp"
+          android:textColor="@color/psy_widget_text"
+          android:textSize="12sp" />
+    </LinearLayout>
+  </LinearLayout>
+</LinearLayout>

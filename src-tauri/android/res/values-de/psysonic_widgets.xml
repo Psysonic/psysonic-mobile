@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_now">Läuft gerade</string>
+  <string name="widget_cover">Cover</string>
+  <string name="widget_mix">Mix</string>
+  <string name="widget_recent">Kürzlich gespielt</string>
+  <string name="tile_play_pause">Play / Pause</string>
+</resources>
