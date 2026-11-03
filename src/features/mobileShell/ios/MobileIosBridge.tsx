@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useCarPlayBridge } from '@/features/mobileShell/ios/useCarPlayBridge';
 import { useIosAudioInterruptions } from '@/features/mobileShell/ios/useIosAudioInterruptions';
 import { useSiriBridge } from '@/features/mobileShell/ios/useSiriBridge';
+import { useIosWidgets } from '@/features/mobileShell/ios/useIosWidgets';
 import { syncLandscape } from '@/features/mobileShell/ios/iosOrientation';
 import { watchMeteredNetwork } from '@/lib/network/meteredNetwork';
 import { startLocalPlaybackPathRebase } from '@/features/mobileShell/ios/rebaseLocalPlaybackPaths';
@@ -20,12 +21,13 @@ import { keepEqPerIosOutput } from '@/features/mobileShell/ios/iosEqOutput';
  * iPhone's buttons set the loudness. The infinite queue tops up whenever a song starts.
  * While a whole library downloads, the screen stays on (the download needs the app open).
  * With the setting on, music the car stopped carries on when CarPlay connects again, and the
- * EQ is kept per output when that is switched on.
+ * EQ is kept per output when that is switched on. The home screen widgets learn what plays.
  */
 export default function MobileIosBridge() {
   useIosAudioInterruptions();
   useCarPlayBridge();
   useSiriBridge();
+  useIosWidgets();
   useEffect(() => { syncLandscape(); }, []);
   useEffect(() => { startLocalPlaybackPathRebase(); }, []);
   useEffect(() => { pinFullAppVolume(); }, []);

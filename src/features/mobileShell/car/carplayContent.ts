@@ -264,12 +264,23 @@ function luckyMixAvailableNow(): boolean {
   });
 }
 
-/** The fourth tab: Lucky Mix where AudioMuse runs, the random mix everywhere else. */
-function mixList(): CarPlayList {
-  const item: CarPlayItem = luckyMixAvailableNow()
+/** The mix a tap starts: Lucky Mix where AudioMuse runs, the random mix everywhere else. */
+export function carPlayMixItem(): CarPlayItem {
+  return luckyMixAvailableNow()
     ? { node: node('luckymix'), title: t('carPlay.luckyMixStart'), subtitle: t('carPlay.luckyMixStartHint'), browse: false, icon: 'lucky' }
     : { node: node('random'), title: t('carPlay.randomMixStart'), subtitle: randomMixHint(), browse: false, icon: 'shuffle' };
-  return { sections: [{ items: [item] }] };
+}
+
+/** The fourth tab: the mix. */
+function mixList(): CarPlayList {
+  return { sections: [{ items: [carPlayMixItem()] }] };
+}
+
+/** Recently played albums as rows (the home widget's), newest first. */
+export async function carPlayRecentlyPlayedRows(size: number): Promise<CarPlayItem[]> {
+  const serverId = browseServerId();
+  if (!serverId) return [];
+  return albumRows(await feedAlbums(serverId, 'recentlyPlayed', size), serverId);
 }
 
 async function radioList(): Promise<CarPlayList> {
@@ -625,6 +636,12 @@ export async function carPlayPlay(id: string): Promise<void> {
     case 'queueat': playQueueIndex(Number(parts[0])); return;
     default: return;
   }
+}
+
+/** Loads the track list behind `listNode` (an album row) and plays it from the start. */
+export async function carPlayPlayList(listNode: string): Promise<void> {
+  await listFor(listNode);
+  playShown(listNode, 0, false);
 }
 
 function playQueueIndex(index: number): void {
