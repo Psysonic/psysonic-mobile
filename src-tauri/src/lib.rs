@@ -566,6 +566,7 @@ pub fn run() {
                 ios::screen::listen(app.handle());
                 ios::carplay::listen(app.handle());
                 ios::siri::listen(app.handle());
+                ios::widgets::listen(app.handle());
                 ios::network::observe(app.handle());
                 ios::backup::exclude_media_dir(app.handle());
             }

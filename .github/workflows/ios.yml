@@ -125,14 +125,23 @@ jobs:
 
       - run: npx tauri ios init --ci
 
+      # Home and lock screen widgets, Control Center controls (src-tauri/ios/widgets).
+      - name: Add the widget extension
+        env:
+          PSYSONIC_BUILD_NUMBER: ${{ github.run_number }}
+        run: node src-tauri/ios/patch-gen.mjs
+
       # Tauri has no iOS entitlements setting; the generated project carries an
       # entitlements file, and automatic signing picks the capability up from the App ID.
-      - name: Add the CarPlay entitlement
+      # The App Group is shared with the widget extension.
+      - name: Add the CarPlay, Siri and App Group entitlements
         run: |
           f=$(find src-tauri/gen/apple -name '*_iOS.entitlements' | head -n 1)
           if [ -z "$f" ]; then echo "::error::No entitlements file in the generated project"; exit 1; fi
           /usr/libexec/PlistBuddy -c "Add :com.apple.developer.carplay-audio bool true" "$f"
           /usr/libexec/PlistBuddy -c "Add :com.apple.developer.siri bool true" "$f"
+          /usr/libexec/PlistBuddy -c "Add :com.apple.security.application-groups array" "$f"
+          /usr/libexec/PlistBuddy -c "Add :com.apple.security.application-groups:0 string group.dev.psysonic.player" "$f"
           cat "$f"
 
       - name: Show linked SDK frameworks
@@ -152,6 +161,9 @@ jobs:
           ipa=$(find src-tauri/gen/apple/build -name '*.ipa' | head -n 1)
           rm -rf ipa-check && mkdir ipa-check && unzip -q "$ipa" -d ipa-check
           codesign -d --entitlements - ipa-check/Payload/*.app
+          for appex in ipa-check/Payload/*.app/PlugIns/*.appex; do
+            codesign -d --entitlements - "$appex"
+          done
 
       - name: Upload to TestFlight
         if: inputs.mode == 'testflight'
