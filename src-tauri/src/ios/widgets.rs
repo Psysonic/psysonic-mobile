@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use objc2::runtime::AnyObject;
+use objc2::runtime::{AnyClass, AnyObject};
 use objc2::{class, msg_send};
 use objc2_foundation::NSString;
 use serde_json::Value;
@@ -40,12 +40,9 @@ static WAITING: Mutex<Vec<String>> = Mutex::new(Vec::new());
 static WRITING: Mutex<()> = Mutex::new(());
 static FOLDER: OnceLock<Option<PathBuf>> = OnceLock::new();
 
-unsafe extern "C" {
-    /// `WidgetBridge.swift` in the app target: `WidgetCenter.shared.reloadAllTimelines()`.
-    fn psysonic_widget_reload();
-    /// `WidgetBridge.swift`: taps the system ran in the extension reach the app.
-    fn psysonic_widget_observe();
-}
+/// `WidgetBridge.swift` in the app target. Looked up at run time: the library is also linked
+/// as a `cdylib`, where the app's Swift code is missing.
+const CENTER: &CStr = c"PsysonicWidgetCenter";
 
 #[derive(Clone, serde::Serialize)]
 struct CommandRequest {
@@ -56,10 +53,7 @@ pub(crate) fn listen(app: &AppHandle) {
     if APP.set(app.clone()).is_err() {
         return;
     }
-    let _ = app.run_on_main_thread(|| {
-        // SAFETY: plain C call into the app's Swift code, on the main thread.
-        unsafe { psysonic_widget_observe() };
-    });
+    let _ = app.run_on_main_thread(|| center_call(Center::Observe));
     let updates = app.clone();
     app.listen_any("widget:update", move |event| {
         let Ok(state) = serde_json::from_str::<Value>(event.payload()) else {
@@ -70,10 +64,7 @@ pub(crate) fn listen(app: &AppHandle) {
             crate::app_eprintln!("[widgets] state not written: {error}");
             return;
         }
-        let _ = updates.run_on_main_thread(|| {
-            // SAFETY: plain C call into the app's Swift code, on the main thread.
-            unsafe { psysonic_widget_reload() };
-        });
+        let _ = updates.run_on_main_thread(|| center_call(Center::Reload));
     });
 
     let ready = app.clone();
@@ -87,6 +78,33 @@ pub(crate) fn listen(app: &AppHandle) {
             let _ = ready.emit("widget:command", CommandRequest { action });
         }
     });
+}
+
+enum Center {
+    /// `WidgetCenter` and `ControlCenter` draw the state file again.
+    Reload,
+    /// Taps the system ran in the extension reach the app.
+    Observe,
+}
+
+/// Calls a class method of `PsysonicWidgetCenter`; main thread only.
+fn center_call(call: Center) {
+    let Some(center) = AnyClass::get(CENTER) else {
+        crate::app_eprintln!("[widgets] PsysonicWidgetCenter missing");
+        return;
+    };
+    // SAFETY: both are `@objc static func` without arguments or result, called on the
+    // main thread.
+    unsafe {
+        match call {
+            Center::Reload => {
+                let _: () = msg_send![center, reload];
+            }
+            Center::Observe => {
+                let _: () = msg_send![center, observe];
+            }
+        }
+    }
 }
 
 fn deliver(action: String) {

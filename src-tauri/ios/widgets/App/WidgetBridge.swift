@@ -1,37 +1,40 @@
 // ⚠️ iOS territory, app target only (`patch-gen.mjs` sets `PSYSONIC_APP` for it).
 //
 // The app's side of the widgets: Rust (`src-tauri/src/ios/widgets.rs`) calls in to redraw
-// them and to listen for taps that ran in the extension; taps go out to Rust, declared in
-// `PsysonicWidgets-Bridging.h`.
+// them and to listen for taps that ran in the extension (`PsysonicWidgetCenter`); taps go
+// out to Rust, declared in `PsysonicWidgets-Bridging.h`.
 
 import AppIntents
 import Foundation
 import WidgetKit
 
-/// The state file changed: widgets and controls draw it again.
-@_cdecl("psysonic_widget_reload")
-public func psysonicWidgetReload() {
-    WidgetCenter.shared.reloadAllTimelines()
-    if #available(iOS 18.0, *) {
-        ControlCenter.shared.reloadAllControls()
+/// Rust looks this class up at run time (`widgets.rs`): the Rust library is also linked on
+/// its own, without the app's Swift code, so it cannot name these functions directly.
+@objc(PsysonicWidgetCenter)
+final class PsysonicWidgetCenter: NSObject {
+    /// The state file changed: widgets and controls draw it again.
+    @objc static func reload() {
+        WidgetCenter.shared.reloadAllTimelines()
+        if #available(iOS 18.0, *) {
+            ControlCenter.shared.reloadAllControls()
+        }
     }
-}
 
-/// Taps the system ran in the extension arrive as a Darwin notification.
-@_cdecl("psysonic_widget_observe")
-public func psysonicWidgetObserve() {
-    CFNotificationCenterAddObserver(
-        CFNotificationCenterGetDarwinNotifyCenter(),
-        nil,
-        { _, _, _, _, _ in
-            if let action = WidgetCommandDrop.take() {
-                WidgetBridge.send(action)
-            }
-        },
-        WidgetCommandDrop.notification as CFString,
-        nil,
-        .deliverImmediately
-    )
+    /// Taps the system ran in the extension arrive as a Darwin notification.
+    @objc static func observe() {
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            nil,
+            { _, _, _, _, _ in
+                if let action = WidgetCommandDrop.take() {
+                    WidgetBridge.send(action)
+                }
+            },
+            WidgetCommandDrop.notification as CFString,
+            nil,
+            .deliverImmediately
+        )
+    }
 }
 
 enum WidgetBridge {
