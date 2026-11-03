@@ -54,7 +54,9 @@ struct StateProvider: TimelineProvider {
 
 /// A name from the app's language; widgets read it when they are listed.
 func displayName(_ name: String) -> LocalizedStringResource {
-    "\(name)"
+    // The name itself is the key: an interpolation would make the key "%@", which the
+    // gallery shows as is (it resolves the name in another process, without the argument).
+    LocalizedStringResource(String.LocalizationValue(name))
 }
 
 // MARK: - Look
