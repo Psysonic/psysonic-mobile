@@ -435,8 +435,10 @@ struct RecentView: View {
                 ForEach(Array((state.recent ?? []).prefix(4).enumerated()), id: \.offset) { _, album in
                     Button(intent: PsysonicCommandIntent(action: "album:\(album.node)")) {
                         VStack(alignment: .leading, spacing: 4) {
-                            CoverImage(url: state.imageURL(album.image))
+                            // A square the cover fills: a cover that is not square keeps the same size.
+                            Color.clear
                                 .aspectRatio(1, contentMode: .fit)
+                                .overlay(CoverImage(url: state.imageURL(album.image)))
                                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             Text(album.title)
                                 .font(.system(size: 11))
