@@ -10,3 +10,4 @@ pub mod orientation;
 pub mod scene;
 pub mod screen;
 pub mod siri;
+pub mod widgets;

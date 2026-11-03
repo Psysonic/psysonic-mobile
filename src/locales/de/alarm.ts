@@ -18,7 +18,7 @@ export const alarm = {
   minutes: 'Minuten',
   repeat: 'Wiederholen',
   music: 'Musik',
-  sourceLuckymix: 'Glücks-Mix',
+  sourceLuckymix: 'Lucky Mix',
   sourceRandom: 'Zufallsmix',
   sourceFavorites: 'Lieblingstitel',
   sourcePlaylist: 'Playlist',
