@@ -12,7 +12,7 @@ export const carPlay = {
   recentlyAdded: 'Kürzlich hinzugefügt',
   randomAlbums: 'Zufallsauswahl',
   starredAlbums: 'Favorisiert',
-  luckyMixStart: 'Glücks-Mix starten',
+  luckyMixStart: 'Lucky Mix starten',
   luckyMixStartHint: 'Deine meistgehörten Künstler und bestbewerteten Titel, ergänzt um ähnliche',
   randomMixStart: 'Zufallsmix starten',
   showAll: 'Alle anzeigen',
