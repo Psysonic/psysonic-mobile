@@ -186,16 +186,6 @@ struct SongTitle: View {
     }
 }
 
-struct LogoMark: View {
-    let accent: Color
-
-    var body: some View {
-        Text("P")
-            .font(.system(size: 17, weight: .heavy))
-            .foregroundStyle(accent)
-    }
-}
-
 extension WidgetState {
     var accentColor: Color { Palette.accent(accent) }
     var nowTitle: String { now?.title ?? nothingPlayingLabel }
@@ -393,15 +383,11 @@ struct MixView: View {
         } else {
             Button(intent: PsysonicCommandIntent(action: "mix")) {
                 VStack(alignment: .leading) {
-                    HStack {
-                        Image(systemName: "shuffle")
-                            .font(.system(size: 19, weight: .bold))
-                            .foregroundStyle(Palette.ink)
-                            .frame(width: 44, height: 44)
-                            .background(Circle().fill(state.accentColor))
-                        Spacer(minLength: 0)
-                        LogoMark(accent: state.accentColor)
-                    }
+                    Image(systemName: "shuffle")
+                        .font(.system(size: 19, weight: .bold))
+                        .foregroundStyle(Palette.ink)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(state.accentColor))
                     Spacer(minLength: 0)
                     Text(state.mixTitle)
                         .font(.system(size: 16, weight: .bold))
@@ -444,7 +430,6 @@ struct RecentView: View {
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Palette.text)
                 Spacer(minLength: 0)
-                LogoMark(accent: state.accentColor)
             }
             HStack(alignment: .top, spacing: 10) {
                 ForEach(Array((state.recent ?? []).prefix(4).enumerated()), id: \.offset) { _, album in
