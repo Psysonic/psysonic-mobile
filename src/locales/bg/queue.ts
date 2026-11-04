@@ -57,6 +57,9 @@ export const queue = {
   clearCachedLoudnessWaveform: 'Изчисти кешираната сила на звука и вълновата форма, след което анализирай отново тази песен',
   recalculatingLoudnessWaveform: 'Преизчисляване на силата на звука и вълновата форма за тази песен…',
   bpm: '{{bpm}} BPM',
+  touchRemoved: 'Премахнато: {{title}}',
+  touchPlaysNext: 'Следва: {{title}}',
+  touchUndo: 'Отмени',
   moods: {
     happy: 'Щастливо',
     excited: 'Развълнувано',

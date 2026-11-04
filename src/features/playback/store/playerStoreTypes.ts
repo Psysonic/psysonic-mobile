@@ -245,6 +245,8 @@ export interface PlayerState {
     timelineFromHereRefs?: QueueItemRef[];
     /** Touch shell: the menu opens above the anchor at `y` (the player's "…" button) and keeps it free. */
     placeAbove?: boolean;
+    /** Touch shell: menu for the playing track (player "…"); see `ContextMenuItemsProps.nowPlayingMenu`. */
+    nowPlayingMenu?: boolean;
   };
   openContextMenu: (
     x: number,
@@ -259,6 +261,7 @@ export interface PlayerState {
     playlistSongRemove?: () => void | Promise<void>,
     timelineFromHereRefs?: QueueItemRef[],
     placeAbove?: boolean,
+    nowPlayingMenu?: boolean,
   ) => void;
   closeContextMenu: () => void;
 

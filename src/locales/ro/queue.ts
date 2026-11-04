@@ -57,6 +57,9 @@ export const queue = {
   clearCachedLoudnessWaveform: 'Golește zgomotul si formele de undă din cache, apoi reanalizează piesa',
   recalculatingLoudnessWaveform: 'Se recalculează zgomotul și formele de undă pentru această piesă…',
   bpm: '{{bpm}} BPM',
+  touchRemoved: 'Eliminat: {{title}}',
+  touchPlaysNext: 'Urmează: {{title}}',
+  touchUndo: 'Anulează',
   moods: {
     happy: 'Fericit',
     excited: 'Entuziasmat',

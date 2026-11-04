@@ -225,12 +225,14 @@ export function PersonalisationTab() {
               checked={smartShuffleEnabled}
               onChange={setSmartShuffleEnabled}
             />
-            <SettingsToggle
-              label={t('settings.queueRowFavoriteButton')}
-              desc={t('settings.queueRowFavoriteButtonSub')}
-              checked={queueRowFavoriteButton}
-              onChange={setQueueRowFavoriteButton}
-            />
+            <DesktopOnly>
+              <SettingsToggle
+                label={t('settings.queueRowFavoriteButton')}
+                desc={t('settings.queueRowFavoriteButtonSub')}
+                checked={queueRowFavoriteButton}
+                onChange={setQueueRowFavoriteButton}
+              />
+            </DesktopOnly>
           </SettingsGroup>
 
           <DesktopOnly>

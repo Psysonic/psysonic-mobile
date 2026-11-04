@@ -57,6 +57,9 @@ export const queue = {
   clearCachedLoudnessWaveform: 'Gyorsítótárazott hangerő és hullámforma törlése, majd a szám újraelemzése',
   recalculatingLoudnessWaveform: 'A szám hangerejének és hullámformájának újraszámítása…',
   bpm: '{{bpm}} BPM',
+  touchRemoved: 'Eltávolítva: {{title}}',
+  touchPlaysNext: 'Következik: {{title}}',
+  touchUndo: 'Visszavonás',
   moods: {
     happy: 'Vidám',
     excited: 'Izgatott',

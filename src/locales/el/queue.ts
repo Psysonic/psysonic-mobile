@@ -57,6 +57,9 @@ export const queue = {
   clearCachedLoudnessWaveform: 'Εκκαθάριση αποθηκευμένης έντασης και κυματομορφής και επανανάλυση του κομματιού',
   recalculatingLoudnessWaveform: 'Επανυπολογισμός έντασης και κυματομορφής για αυτό το κομμάτι…',
   bpm: '{{bpm}} BPM',
+  touchRemoved: 'Αφαιρέθηκε: {{title}}',
+  touchPlaysNext: 'Επόμενο: {{title}}',
+  touchUndo: 'Αναίρεση',
   moods: {
     happy: 'Χαρούμενο',
     excited: 'Ενθουσιασμένο',

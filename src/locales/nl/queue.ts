@@ -57,6 +57,9 @@ export const queue = {
   clearCachedLoudnessWaveform: 'Clear cached loudness and waveform, then re-analyze this track',
   recalculatingLoudnessWaveform: 'Recalculating loudness and waveform for this track…',
   bpm: '{{bpm}} BPM',
+  touchRemoved: 'Verwijderd: {{title}}',
+  touchPlaysNext: 'Speelt hierna: {{title}}',
+  touchUndo: 'Ongedaan maken',
   moods: {
     happy: 'Happy',
     excited: 'Excited',

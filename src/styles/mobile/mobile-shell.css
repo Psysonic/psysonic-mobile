@@ -2557,6 +2557,198 @@ html[data-mobile-app] .app-shell {
   transition: box-shadow 0.15s;
 }
 
+/* Grip at the row's end: grab it to reorder (as in playlists). */
+.queue-panel--touch .queue-item-grip {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  touch-action: none;
+  /* `.queue-item > *` turns pointer events off for the desktop drag; the grip needs them. */
+  pointer-events: auto;
+}
+
+/* Row swipes (`useQueueRowGestures`): the row slides over a stripe that turns
+   solid once the swipe would act — left removes, right plays next. */
+.queue-panel--touch .queue-item {
+  transition: transform 0.18s ease-out;
+}
+
+.queue-panel--touch .queue-item.queue-item--swiping {
+  position: relative;
+  z-index: 1;
+  transform: translateX(var(--swipe-dx, 0px));
+  transition: none;
+  background: var(--bg-app);
+}
+
+.queue-swipe-track::before,
+.queue-swipe-track::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+
+.queue-swipe-track::before {
+  left: 0;
+  right: 0;
+  top: var(--swipe-top, 0px);
+  height: var(--swipe-h, 100%);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--swipe-color) 40%, transparent);
+}
+
+.queue-swipe-track[data-swipe-armed]::before {
+  background: var(--swipe-color);
+}
+
+.queue-swipe-track::after {
+  top: calc(var(--swipe-top, 0px) + var(--swipe-h, 0px) / 2 - 12px);
+  width: 24px;
+  height: 24px;
+  background-color: var(--text-on-accent, var(--bg-app));
+  -webkit-mask: var(--swipe-icon) center / contain no-repeat;
+  mask: var(--swipe-icon) center / contain no-repeat;
+}
+
+.queue-swipe-track[data-swipe="remove"] {
+  --swipe-color: var(--danger);
+  --swipe-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18'/%3E%3Cpath d='M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6'/%3E%3Cpath d='M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2'/%3E%3C/svg%3E");
+}
+
+.queue-swipe-track[data-swipe="remove"]::after {
+  right: 22px;
+}
+
+.queue-swipe-track[data-swipe="next"] {
+  --swipe-color: var(--accent);
+  --swipe-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 17 5-5-5-5'/%3E%3Cpath d='m13 17 5-5-5-5'/%3E%3C/svg%3E");
+}
+
+.queue-swipe-track[data-swipe="next"]::after {
+  left: 22px;
+}
+
+/* Ring menu around a held queue row (`QueueRingMenu`). */
+.queue-ring {
+  position: fixed;
+  inset: 0;
+  z-index: 100002;
+  background: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+  animation: queue-ring-in 0.12s ease-out;
+}
+
+@keyframes queue-ring-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.queue-ring__svg {
+  position: absolute;
+  inset: 0;
+}
+
+.queue-ring__slice {
+  fill: var(--bg-elevated, var(--bg-card));
+  stroke: var(--bg-app);
+  stroke-width: 3;
+  transition: fill 0.08s;
+}
+
+.queue-ring__slice.is-active {
+  fill: var(--accent);
+}
+
+.queue-ring__icon,
+.queue-ring__center,
+.queue-ring__label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.queue-ring__icon {
+  color: var(--text-primary);
+}
+
+.queue-ring__icon--remove {
+  color: var(--danger);
+}
+
+.queue-ring__icon.is-active {
+  color: var(--text-on-accent, var(--bg-app));
+}
+
+.queue-ring__center {
+  border-radius: 50%;
+  background: var(--bg-app);
+  border: 2px solid var(--text-muted);
+  color: var(--text-secondary);
+  box-sizing: border-box;
+}
+
+.queue-ring__center.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.queue-ring__label {
+  transform: translate(-50%, -100%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--text-on-accent, var(--bg-app));
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* What a quick action did, with Undo (`QueueUndoBar`). */
+.queue-undo-bar {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 100002;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 16px;
+  border-radius: 14px;
+  background: var(--bg-elevated, var(--bg-card));
+  color: var(--text-primary);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  font-size: 14px;
+}
+
+.queue-undo-bar__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-undo-bar__btn {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 700;
+}
+
 /* ─── Mainstage sections: tighter rhythm, swipe rails, iOS headings ─── */
 .app-shell[data-mobile-app] .app-shell-route-host .content-body:not(.mainstage-inpage-split) {
   gap: 26px !important;

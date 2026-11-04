@@ -199,6 +199,7 @@ export default function ContextMenu() {
     shareKindOverride,
     pinToPlaybackServer = false,
     timelineFromHereRefs,
+    nowPlayingMenu,
   } = contextMenu;
   const itemServerIds = contextMenuServerIds(item);
   const capabilityServerIds = itemServerIds.length > 0
@@ -284,6 +285,7 @@ export default function ContextMenu() {
           playlistSongRemove={playlistSongRemove}
           timelineFromHereRefs={timelineFromHereRefs}
           shareKindOverride={shareKindOverride}
+          nowPlayingMenu={nowPlayingMenu}
           playTrack={playTrack}
           playNext={playNext}
           enqueue={enqueue}

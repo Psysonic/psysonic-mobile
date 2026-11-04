@@ -136,6 +136,13 @@ when changing the files involved. Pure layout swaps (touch components, `DesktopO
 | On mobile data or a hotspot, downloads wait for Wi-Fi unless the user allows that album, playlist or artist for the session. | No mobile data without consent. | `src/features/offline/utils/meteredDownloadGate.ts`, `src/lib/network/meteredNetwork.ts`, `src/features/offline/utils/offlinePinQueue.ts` | Changes to the pin queue's slot accounting can deadlock or bypass the gate. |
 | `/` and `/library` stay open while offline. | They are the phone's home screens. | `src/features/offline/utils/offlineBrowseRouting.ts` | |
 
+### Queue and menus
+
+| What | Why | Where | Watch out |
+|---|---|---|---|
+| The player's "…" menu leaves out Play now, Play next, Add to queue, the Orbit add, Favorite and Go to artist (`nowPlayingMenu`). | It is about the track that is already playing; the player has its own heart and artist links. | `src/features/mobileShell/components/MobilePlayer.tsx`, `src/features/contextMenu/components/SongContextItems.tsx` | Desktop callers never set the flag; keep it optional. |
+| Queue rows reorder by their grip only, as in playlists; holding the rest of a row opens a ring of quick actions (play next, like, info, radio, remove; the middle opens the full menu); swiping left removes, right plays next, both with an undo bar. Rows have no favorite heart (the ring has like); the setting for it is desktop-only. | Hold-to-drag left no gesture for quick actions; reported by testers. | `src/features/queue/hooks/useTouchQueueReorder.ts`, `useQueueRowGestures.ts`, `useQueueTouchRowActions.ts`, `components/QueueRingMenu.tsx`, `QueueUndoBar.tsx`, `QueueList.tsx` (`touch`) | Everything is behind `QueuePanel touch`; the desktop queue is unchanged. |
+
 ### Settings and defaults
 
 | What | Why | Where |

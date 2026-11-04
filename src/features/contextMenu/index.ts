@@ -8,3 +8,5 @@
 export {};
 /** Touch shell: the selection bar offers the same "Add to playlist" submenu. */
 export { AddToPlaylistSubmenu } from './components/ContextMenu';
+/** Touch queue: the ring menu's "Radio" starts the same artist radio as the menu entry. */
+export { startRadio } from './utils/contextMenuActions';
