@@ -16,8 +16,13 @@ declare global {
   }
 }
 
-/** The overlay opened last (portals append to the end of the body). */
+/** Menus always draw above sheets, but the context menu sits before the sheet portals in the DOM. */
+const MENU_SELECTOR = '.context-menu, .mobile-more-menu__list';
+
+/** The overlay on top: an open menu first, otherwise the one opened last (portals append to the end of the body). */
 export function topOverlay(root: ParentNode = document): Element | null {
+  const menus = root.querySelectorAll(MENU_SELECTOR);
+  if (menus.length > 0) return menus[menus.length - 1];
   const all = root.querySelectorAll(OVERLAY_SELECTOR);
   return all.length > 0 ? all[all.length - 1] : null;
 }
