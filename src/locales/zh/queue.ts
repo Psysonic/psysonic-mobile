@@ -57,6 +57,9 @@ export const queue = {
   clearCachedLoudnessWaveform: 'Clear cached loudness and waveform, then re-analyze this track',
   recalculatingLoudnessWaveform: 'Recalculating loudness and waveform for this track…',
   bpm: '{{bpm}} BPM',
+  touchRemoved: '已移除 {{title}}',
+  touchPlaysNext: '下一首播放: {{title}}',
+  touchUndo: '撤销',
   moods: {
     happy: 'Happy',
     excited: 'Excited',

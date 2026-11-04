@@ -57,6 +57,9 @@ export const queue = {
   clearCachedLoudnessWaveform: 'キャッシュ済みのラウドネスと波形をクリアし、このトラックを再解析',
   recalculatingLoudnessWaveform: 'このトラックのラウドネスと波形を再計算中…',
   bpm: '{{bpm}} BPM',
+  touchRemoved: '削除しました: {{title}}',
+  touchPlaysNext: '次に再生: {{title}}',
+  touchUndo: '元に戻す',
   moods: {
     happy: 'ハッピー',
     excited: '高揚感',

@@ -102,6 +102,19 @@ describe('QueuePanel touch layout', () => {
     expect(screen.getByText('Second')).toBeInTheDocument();
   });
 
+  it('rows have a grip but no favorite heart (like is in the ring menu); desktop keeps the heart', () => {
+    seedThree();
+    useAuthStore.setState({ queueRowFavoriteButton: true, queueDisplayMode: 'queue' });
+    const { container, unmount } = renderWithProviders(<QueuePanel touch />);
+    expect(container.querySelectorAll('.queue-item-grip').length).toBe(2);
+    expect(container.querySelector('.queue-item-star')).toBeNull();
+    unmount();
+
+    const desktop = renderWithProviders(<QueuePanel />);
+    expect(desktop.container.querySelector('.queue-item-star')).not.toBeNull();
+    expect(desktop.container.querySelector('.queue-item-grip')).toBeNull();
+  });
+
   it('the mode switch sets queue / playlist / timeline', () => {
     seedThree();
     renderWithProviders(<QueuePanel touch />);

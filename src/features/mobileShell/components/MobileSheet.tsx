@@ -109,6 +109,12 @@ export default function MobileSheet({ title, hideTitle, onClose, className, chil
     };
     const onMove = (e: TouchEvent) => {
       if (startY === null) return;
+      // A gesture inside already owns this finger (a row lifted by its grip, the queue's
+      // ring menu or a row swipe): the sheet stays where it is.
+      if (e.defaultPrevented && !dragging) {
+        startY = null;
+        return;
+      }
       const y = e.touches[0].clientY;
       if (!dragging) {
         if (y - startY <= 0 || body.scrollTop > 0) {

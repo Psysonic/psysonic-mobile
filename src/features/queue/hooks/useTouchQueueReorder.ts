@@ -12,9 +12,11 @@ interface Args {
 }
 
 /**
- * Touch reordering for the queue sheet (hold a row, drag it, let go; see
- * `useTouchListReorder`). Timeline history rows stay where they are, and the
- * row's own buttons (favorite) keep their tap.
+ * Touch reordering for the queue sheet, as in playlists: grab a row's grip and
+ * it lifts at once and follows the finger (see `useTouchListReorder`); holding
+ * the rest of the row opens the ring menu instead (`useQueueRowGestures`).
+ * Timeline history rows stay where they are, and the row's other buttons
+ * (favorite) keep their tap.
  */
 export function useTouchQueueReorder({ listRef, enabled, moveQueueItems }: Args): TouchDropTarget | null {
   return useTouchListReorder({
@@ -22,7 +24,9 @@ export function useTouchQueueReorder({ listRef, enabled, moveQueueItems }: Args)
     enabled,
     rowSelector: '[data-queue-idx]:not([data-timeline-kind="history"])',
     indexAttr: 'data-queue-idx',
-    ignoreSelector: 'button',
+    ignoreSelector: 'button:not(.queue-item-grip)',
+    handleSelector: '.queue-item-grip',
+    liftDelayMs: 0,
     liftedClass: 'queue-item--lifted',
     onDrop: (from, target) => moveQueueItems([from], target.before ? target.idx : target.idx + 1),
   });

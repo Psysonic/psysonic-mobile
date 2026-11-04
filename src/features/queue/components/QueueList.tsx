@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Heart, Play } from 'lucide-react';
+import { GripVertical, Heart, Play } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import OverlayScrollArea from '@/ui/OverlayScrollArea';
 import { usePlayerStore } from '@/features/playback/store/playerStore';
@@ -63,6 +63,8 @@ interface Props {
   startDrag: StartDrag;
   orbitAttributionLabel: (trackId: string) => string | null;
   luckyRolling: boolean;
+  /** Touch sheet: each movable row gets a grip to reorder it. */
+  touch?: boolean;
   t: TFunction;
 }
 
@@ -72,7 +74,7 @@ export function QueueList({
   queue, timelineRows, canonicalQueue, queueIndex, displayBaseIndex, queueDisplayMode, emptyLabel,
   contextMenu, playTrack, activeTab, queueListRef,
   suppressNextAutoScrollRef, isQueueDrag, psyDragFromIdxRef, externalDropTarget,
-  startDrag, orbitAttributionLabel, luckyRolling, t,
+  startDrag, orbitAttributionLabel, luckyRolling, touch = false, t,
 }: Props) {
   useSyncExternalStore(subscribeQueueResolver, getQueueResolverVersion);
   const showCovers = useTrackListCoverArtEnabled('queue');
@@ -303,7 +305,8 @@ export function QueueList({
         <div className="queue-item-duration">
           {formatTrackTime(track.duration)}
         </div>
-        {showFavoriteButton && (() => {
+        {/* Touch: like lives in the ring menu; the setting is desktop-only (MOBILE.md). */}
+        {showFavoriteButton && !touch && (() => {
           const starred = ownedOverrideValue(starredOverrides, track) ?? !!track.starred;
           return (
             <button
@@ -323,6 +326,17 @@ export function QueueList({
             </button>
           );
         })()}
+        {touch && !isHistory && absIdx != null && (
+          <button
+            type="button"
+            className="queue-item-grip"
+            aria-label={t('playlists.reorderMove', { title: track.title })}
+            onMouseDown={e => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
+          >
+            <GripVertical size={22} aria-hidden="true" />
+          </button>
+        )}
       </div>
     );
   };

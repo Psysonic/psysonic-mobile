@@ -102,4 +102,22 @@ describe('MobileSheet', () => {
     slideOut();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('stays put when a gesture inside already owns the finger (row lifted by its grip)', () => {
+    const { onClose } = setup();
+    const body = document.querySelector('.mobile-sheet__body') as HTMLElement;
+    const inner = document.createElement('div');
+    body.appendChild(inner);
+    inner.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    const touch = (y: number) => ({ touches: [{ clientY: y }] });
+    act(() => {
+      fireEvent.touchStart(inner, touch(100));
+      fireEvent.touchMove(inner, touch(150));
+      fireEvent.touchMove(inner, touch(300));
+      fireEvent.touchEnd(inner);
+    });
+    expect((document.querySelector('.mobile-sheet') as HTMLElement).style.transform).toBe('');
+    slideOut();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

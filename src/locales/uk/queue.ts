@@ -57,6 +57,9 @@ export const queue = {
   clearCachedLoudnessWaveform: 'Очистити кешовану гучність та форму хвилі, потім повторно проаналізувати цей трек',
   recalculatingLoudnessWaveform: 'Перерахунок гучності та форми хвилі для цього треку…',
   bpm: '{{bpm}} BPM',
+  touchRemoved: 'Видалено: {{title}}',
+  touchPlaysNext: 'Наступним: {{title}}',
+  touchUndo: 'Скасувати',
   moods: {
     happy: 'Веселий',
     excited: 'Піднесений',

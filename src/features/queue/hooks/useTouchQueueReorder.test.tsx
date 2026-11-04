@@ -25,6 +25,7 @@ function Harness({ enabled = true, moveQueueItems, history = false }: {
             >
               Row {i}
               <button type="button">star {i}</button>
+              <button type="button" className="queue-item-grip">grip {i}</button>
             </div>
           </div>
         ))}
@@ -45,6 +46,7 @@ function mockLayout() {
 }
 
 const row = (i: number) => screen.getByTestId(`row-${i}`);
+const grip = (i: number) => screen.getByText(`grip ${i}`);
 const at = (y: number) => ({ x: 100, y });
 const hold = () => act(() => { vi.advanceTimersByTime(LIFT_MS); });
 
@@ -64,7 +66,7 @@ describe('useTouchQueueReorder', () => {
   it('a held row lifts, follows the finger and moves to the drop line', () => {
     const move = vi.fn();
     render(<Harness moveQueueItems={move} />);
-    act(() => { dispatchTouch(row(0), 'touchstart', at(25)); });
+    act(() => { dispatchTouch(grip(0), 'touchstart', at(25)); });
     hold();
     expect(row(0).classList.contains('queue-item--lifted')).toBe(true);
 
@@ -83,7 +85,7 @@ describe('useTouchQueueReorder', () => {
   it('dropping on the lower half of a row inserts after it', () => {
     const move = vi.fn();
     render(<Harness moveQueueItems={move} />);
-    act(() => { dispatchTouch(row(3), 'touchstart', at(175)); });
+    act(() => { dispatchTouch(grip(3), 'touchstart', at(175)); });
     hold();
     act(() => { dispatchTouch(row(3), 'touchmove', at(40)); });
     act(() => { dispatchTouch(row(3), 'touchend', at(40)); });
@@ -92,7 +94,7 @@ describe('useTouchQueueReorder', () => {
 
   it('blocks native scrolling once the row is in the finger', () => {
     render(<Harness moveQueueItems={vi.fn()} />);
-    act(() => { dispatchTouch(row(1), 'touchstart', at(75)); });
+    act(() => { dispatchTouch(grip(1), 'touchstart', at(75)); });
     hold();
     let moveEvent: Event | undefined;
     act(() => { moveEvent = dispatchTouch(row(1), 'touchmove', at(120)); });
@@ -102,7 +104,7 @@ describe('useTouchQueueReorder', () => {
   it('moving the finger before the hold time scrolls instead of lifting', () => {
     const move = vi.fn();
     render(<Harness moveQueueItems={move} />);
-    act(() => { dispatchTouch(row(1), 'touchstart', at(75)); });
+    act(() => { dispatchTouch(grip(1), 'touchstart', at(75)); });
     let moveEvent: Event | undefined;
     act(() => { moveEvent = dispatchTouch(row(1), 'touchmove', at(110)); });
     hold();
@@ -117,7 +119,7 @@ describe('useTouchQueueReorder', () => {
     render(<Harness moveQueueItems={move} />);
     const onMenu = vi.fn();
     row(2).addEventListener('contextmenu', onMenu);
-    act(() => { dispatchTouch(row(2), 'touchstart', at(125)); });
+    act(() => { dispatchTouch(grip(2), 'touchstart', at(125)); });
     hold();
     act(() => { dispatchTouch(row(2), 'touchend', at(125)); });
     expect(onMenu).toHaveBeenCalledTimes(1);
@@ -128,7 +130,7 @@ describe('useTouchQueueReorder', () => {
     render(<Harness moveQueueItems={vi.fn()} />);
     const onClick = vi.fn();
     row(2).addEventListener('click', onClick);
-    act(() => { dispatchTouch(row(2), 'touchstart', at(125)); });
+    act(() => { dispatchTouch(grip(2), 'touchstart', at(125)); });
     hold();
     act(() => { dispatchTouch(row(2), 'touchend', at(125)); });
     act(() => { row(2).click(); });
@@ -143,9 +145,20 @@ describe('useTouchQueueReorder', () => {
     unmount();
 
     render(<Harness moveQueueItems={vi.fn()} history />);
-    act(() => { dispatchTouch(row(0), 'touchstart', at(25)); });
+    act(() => { dispatchTouch(grip(0), 'touchstart', at(25)); });
     hold();
     expect(row(0).classList.contains('queue-item--lifted')).toBe(false);
+  });
+
+  it('only the grip lifts a row: holding the rest of it is left to the ring menu', () => {
+    const move = vi.fn();
+    render(<Harness moveQueueItems={move} />);
+    act(() => { dispatchTouch(row(1), 'touchstart', at(75)); });
+    hold();
+    expect(row(1).classList.contains('queue-item--lifted')).toBe(false);
+    act(() => { dispatchTouch(row(1), 'touchmove', at(160)); });
+    act(() => { dispatchTouch(row(1), 'touchend', at(160)); });
+    expect(move).not.toHaveBeenCalled();
   });
 
   it('opts the list out of the shell-wide long-press menu only while enabled', () => {

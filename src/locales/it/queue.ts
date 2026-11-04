@@ -57,6 +57,9 @@ export const queue = {
   clearCachedLoudnessWaveform: 'Cancella loudness e forma d’onda in cache, poi rianalizza questo brano',
   recalculatingLoudnessWaveform: 'Ricalcolo di loudness e forma d’onda per questo brano…',
   bpm: '{{bpm}} BPM',
+  touchRemoved: 'Rimosso: {{title}}',
+  touchPlaysNext: 'Il prossimo: {{title}}',
+  touchUndo: 'Annulla',
   moods: {
     happy: 'Allegro',
     excited: 'Euforico',

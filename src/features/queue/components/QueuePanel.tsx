@@ -31,6 +31,10 @@ import { QueueTouchHeader } from '@/features/queue/components/QueueTouchHeader';
 import { QueueTouchNowPlaying } from '@/features/queue/components/QueueTouchNowPlaying';
 import { useQueueAutoScroll } from '@/features/queue/hooks/useQueueAutoScroll';
 import { useTouchQueueReorder } from '@/features/queue/hooks/useTouchQueueReorder';
+import { useQueueRowGestures } from '@/features/queue/hooks/useQueueRowGestures';
+import { useQueueTouchRowActions } from '@/features/queue/hooks/useQueueTouchRowActions';
+import { QueueRingMenu } from '@/features/queue/components/QueueRingMenu';
+import { QueueUndoBar } from '@/features/queue/components/QueueUndoBar';
 import { useQueueShare } from '@/features/queue/hooks/useQueueShare';
 import { useTimelineBootstrapOnMode, useTimelineHistoryResolver, useTimelinePlayHistory } from '@/features/playback/hooks/useTimelinePlayHistory';
 import { buildTimelineDisplayRows } from '@/features/playback/utils/buildTimelineDisplayRows';
@@ -198,8 +202,11 @@ function QueuePanelHostOrSolo({ touch, onClose, hideOrbitHead, touchPlaybackMode
     removeQueueItems,
   });
 
-  // Touch: hold a row to lift it, then drag it (no mouse drag on a phone).
+  // Touch: the grip lifts a row to drag it (no mouse drag on a phone); holding
+  // the rest of the row opens the ring of quick actions.
   const touchDropTarget = useTouchQueueReorder({ listRef: queueListRef, enabled: !!touch, moveQueueItems });
+  const touchRowActions = useQueueTouchRowActions(suppressNextAutoScrollRef);
+  const ring = useQueueRowGestures({ listRef: queueListRef, enabled: !!touch, onPick: touchRowActions.run });
 
   useQueueAutoScroll({
     queue: queueItems,
@@ -458,8 +465,13 @@ function QueuePanelHostOrSolo({ touch, onClose, hideOrbitHead, touchPlaybackMode
         startDrag={startDrag}
         orbitAttributionLabel={orbitAttributionLabel}
         luckyRolling={luckyRolling}
+        touch={touch}
         t={t}
       />
+      {touch && ring && <QueueRingMenu ring={ring} />}
+      {touch && touchRowActions.notice && (
+        <QueueUndoBar notice={touchRowActions.notice} onUndo={touchRowActions.undo} t={t} />
+      )}
       </>) : activeTab === 'lyrics' ? (
         <LyricsPane currentTrack={currentTrack} />
       ) : (

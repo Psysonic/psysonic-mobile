@@ -57,6 +57,9 @@ export const queue = {
   clearCachedLoudnessWaveform: 'Сбросить кэш громкости (LUFS) и формы волны и заново проанализировать трек',
   recalculatingLoudnessWaveform: 'Пересчёт громкости и формы волны для этого трека…',
   bpm: '{{bpm}} BPM',
+  touchRemoved: 'Удалено: {{title}}',
+  touchPlaysNext: 'Следующим: {{title}}',
+  touchUndo: 'Отменить',
   moods: {
     happy: 'Радостный',
     excited: 'Возбуждённый',
