@@ -43,8 +43,9 @@ export function useSongInfoData() {
     const songId = songInfoModal.songId;
     const ownerServerId = songInfoModal.serverId;
     void (async () => {
+      // A downloaded or hot-cached track would otherwise skip the server and leave the dialog empty.
       const s = ownerServerId
-        ? await getSongForServer(ownerServerId, songId)
+        ? await getSongForServer(ownerServerId, songId, { evenIfLocal: true })
         : await getSong(songId);
       if (cancelled) return;
       setSong(s);
