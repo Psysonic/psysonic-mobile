@@ -25,7 +25,7 @@ import { useShowStarRatings } from '@/store/starRatings';
 
 export default function SongContextItems(props: ContextMenuItemsProps) {
   const {
-    type, item, playlistId, playlistSongIndex, playlistSongRemove, timelineFromHereRefs,
+    type, item, playlistId, playlistSongIndex, playlistSongRemove, timelineFromHereRefs, nowPlayingMenu,
     playTrack, playNext, enqueue, closeContextMenu,
     networkLovedCache, setNetworkLovedForSong,
     openSongInfo, userRatingOverrides, setKeyboardRating, keyboardRating,
@@ -52,21 +52,28 @@ export default function SongContextItems(props: ContextMenuItemsProps) {
           const song = item as Track;
           return (
             <>
-              <div className="context-menu-item" onClick={() => handleAction(() => playTrack(song, [song]))}>
-                <Play size={14} /> {t('contextMenu.playNow')}
-              </div>
-              <div className="context-menu-item" onClick={() => handleAction(() => playNext([song]))}>
-                <ChevronsRight size={14} /> {t('contextMenu.playNext')}
-              </div>
+              {/* Mobile: see MOBILE.md "Deliberate differences" (player menu for the playing track). */}
+              {!nowPlayingMenu && (
+                <div className="context-menu-item" onClick={() => handleAction(() => playTrack(song, [song]))}>
+                  <Play size={14} /> {t('contextMenu.playNow')}
+                </div>
+              )}
+              {!nowPlayingMenu && (
+                <div className="context-menu-item" onClick={() => handleAction(() => playNext([song]))}>
+                  <ChevronsRight size={14} /> {t('contextMenu.playNext')}
+                </div>
+              )}
               {timelineFromHereRefs && timelineFromHereRefs.length > 0 && (
                 <div className="context-menu-item" onClick={() => handleAction(() => playTimelineFromHere(timelineFromHereRefs))}>
                   <ListStart size={14} /> {t('contextMenu.playFromHere')}
                 </div>
               )}
-              <div className="context-menu-item" onClick={() => handleAction(() => enqueue([song]))}>
-                <ListPlus size={14} /> {t('contextMenu.addToQueue')}
-              </div>
-              {orbitRole === 'guest' && (() => {
+              {!nowPlayingMenu && (
+                <div className="context-menu-item" onClick={() => handleAction(() => enqueue([song]))}>
+                  <ListPlus size={14} /> {t('contextMenu.addToQueue')}
+                </div>
+              )}
+              {orbitRole === 'guest' && !nowPlayingMenu && (() => {
                 const muted = evaluateOrbitSuggestGate().reason === 'muted';
                 return (
                   <div
@@ -89,7 +96,7 @@ export default function SongContextItems(props: ContextMenuItemsProps) {
                   </div>
                 );
               })()}
-              {orbitRole === 'host' && (
+              {orbitRole === 'host' && !nowPlayingMenu && (
                 <div className="context-menu-item" onClick={() => handleAction(() => {
                   hostEnqueueToOrbit(song.id, song.serverId)
                     .then(() => showToast(t('orbit.ctxAddedHostToast'), 2200, 'info'))
@@ -150,7 +157,7 @@ export default function SongContextItems(props: ContextMenuItemsProps) {
                   <Disc3 size={14} /> {t('contextMenu.openAlbum')}
                 </div>
               )}
-              {song.artistId && (
+              {song.artistId && !nowPlayingMenu && (
                 <div className="context-menu-item" onClick={() => handleAction(() => navigateToArtist(
                   song.artistId!,
                   { serverId: song.serverId },
@@ -166,7 +173,7 @@ export default function SongContextItems(props: ContextMenuItemsProps) {
                   <Sparkles size={14} /> {t('contextMenu.instantMix')}
                 </div>
               )}
-              {offlinePolicy.canFavorite && (
+              {offlinePolicy.canFavorite && !nowPlayingMenu && (
                 <div className="context-menu-item" onClick={() => handleAction(() => {
                   queueSongStar(song.id, !isStarred(song.id, song.starred, song.serverId), song.serverId, { scopedOverride: true });
                 })}>

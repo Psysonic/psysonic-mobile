@@ -21,6 +21,10 @@ export interface ContextMenuItemsProps {
   playlistSongRemove?: () => void | Promise<void>;
   timelineFromHereRefs?: QueueItemRef[];
   shareKindOverride?: EntityShareKind;
+  /** Menu for the playing track (touch player "…"): actions the player already has or that
+   *  would queue the playing track again (play, queue, Orbit add, favorite, go to artist —
+   *  the player's artist names are links) are left out. */
+  nowPlayingMenu?: boolean;
   playTrack: (track: Track, queue?: Track[], manual?: boolean, orbitConfirmed?: boolean, targetQueueIndex?: number) => void;
   playNext: (tracks: Track[]) => void;
   enqueue: (tracks: Track[]) => void;
