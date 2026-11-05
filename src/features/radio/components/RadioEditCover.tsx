@@ -1,4 +1,4 @@
-import { Cast } from 'lucide-react';
+import { Radio } from 'lucide-react';
 import type { InternetRadioStation } from '@/lib/api/subsonicTypes';
 import { CoverArtImage } from '@/cover/CoverArtImage';
 import { radioCoverRef } from '@/cover/ref';
@@ -29,7 +29,7 @@ export default function RadioEditCover({ station, coverPreview, coverRemoved, si
   }
   return (
     <div className="album-card-cover-placeholder playlist-card-icon" style={{ width: '100%', height: '100%', borderRadius: 0 }}>
-      <Cast size={Math.round((size * 36) / 140)} strokeWidth={1.2} />
+      <Radio size={Math.round((size * 36) / 140)} strokeWidth={1.2} />
     </div>
   );
 }

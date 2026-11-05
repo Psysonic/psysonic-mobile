@@ -22,6 +22,7 @@ export default function OrbitStartModal({ onClose }: Props) {
   const { t } = useTranslation();
   const {
     name, setName, reshuffleName, maxUsers, setMaxUsers, clearQueue, setClearQueue,
+    autoShuffle, setAutoShuffle,
     serverId, serverOptions, selectServer, server, serverName, onLan,
     shareLink, copied, hasCopied, onCopy, busy, error, onStart,
   } = useOrbitStartForm(onClose);
@@ -139,6 +140,23 @@ export default function OrbitStartModal({ onClose }: Props) {
                 type="checkbox"
                 checked={clearQueue}
                 onChange={e => setClearQueue(e.target.checked)}
+              />
+              <span className="toggle-track" />
+            </span>
+          </label>
+        </div>
+
+        <div className="orbit-start-modal__field">
+          <label className="orbit-start-modal__toggle-row">
+            <div className="orbit-start-modal__toggle-text">
+              <div className="orbit-start-modal__label">{t('orbit.settingAutoShuffle')}</div>
+              <div className="orbit-start-modal__helper">{t('orbit.settingAutoShuffleHint')}</div>
+            </div>
+            <span className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={autoShuffle}
+                onChange={e => setAutoShuffle(e.target.checked)}
               />
               <span className="toggle-track" />
             </span>

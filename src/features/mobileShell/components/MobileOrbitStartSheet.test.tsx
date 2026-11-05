@@ -39,12 +39,26 @@ describe('MobileOrbitStartSheet', () => {
     renderWithProviders(<MobileOrbitStartSheet onClose={onClose} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Friday room' } });
     fireEvent.change(screen.getByRole('slider'), { target: { value: '4' } });
-    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Clear my queue first' }));
     fireEvent.click(screen.getByRole('button', { name: 'Start Orbit' }));
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(mocks.startOrbitSession).toHaveBeenCalledWith({
-      name: 'Friday room', maxUsers: 4, sid: 'session-id', serverId: 'srv-a', clearQueue: true,
+      name: 'Friday room', maxUsers: 4, sid: 'session-id', serverId: 'srv-a', clearQueue: true, autoShuffle: false,
     });
     expect(mocks.writeText).not.toHaveBeenCalled();
+  });
+
+  it('offers the automatic reshuffle like the desktop dialog: off at first, then the last choice', async () => {
+    const first = renderWithProviders(<MobileOrbitStartSheet onClose={() => {}} />);
+    const reshuffle = screen.getByRole('checkbox', { name: 'Automatic reshuffle' });
+    expect(reshuffle).not.toBeChecked();
+    fireEvent.click(reshuffle);
+    fireEvent.click(screen.getByRole('button', { name: 'Start Orbit' }));
+    await waitFor(() => expect(mocks.startOrbitSession).toHaveBeenCalledWith(expect.objectContaining({ autoShuffle: true })));
+    expect(useAuthStore.getState().orbitStartAutoShuffle).toBe(true);
+    first.unmount();
+
+    renderWithProviders(<MobileOrbitStartSheet onClose={() => {}} />);
+    expect(screen.getByRole('checkbox', { name: 'Automatic reshuffle' })).toBeChecked();
   });
 });
