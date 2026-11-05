@@ -6,6 +6,8 @@ import { VirtualCardGrid } from '@/ui/VirtualCardGrid';
 import { albumGridWarmCovers, COVER_TRACK_ROW_CSS_PX } from '@/cover/layoutSizes';
 import { ALBUM_TABLE_ROW_HEIGHT_PX } from '@/lib/util/cardGridLayout';
 import AlbumTableRow from './AlbumTableRow';
+import AlbumListTouch from './AlbumListTouch';
+import { IS_MOBILE_SHELL } from '@/lib/util/platform';
 import { fittedWidth, useTracklistColumns } from '@/lib/hooks/useTracklistColumns';
 import { TracklistHeader } from '@/ui/tracklist/TracklistHeader';
 import { TracklistViewport } from '@/ui/tracklist/TracklistViewport';
@@ -79,8 +81,15 @@ function SortableHeader({
  * card grid pinned to one item per row. The header sits outside the virtualiser
  * (which positions its rows absolutely) and stays stuck to the top of the
  * page's scroll viewport.
+ *
+ * Touch shell: the pages' list layout shows touch rows instead (`AlbumListTouch`);
+ * the columns and the sideways scrolling are a desktop matter.
  */
-export default function AlbumTable({
+export default function AlbumTable(props: AlbumTableProps) {
+  return IS_MOBILE_SHELL ? <AlbumListTouch {...props} /> : <AlbumTableDesktop {...props} />;
+}
+
+function AlbumTableDesktop({
   albums,
   itemKey,
   scrollRootId,
