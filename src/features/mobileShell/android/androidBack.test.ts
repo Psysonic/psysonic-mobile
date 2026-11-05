@@ -33,6 +33,22 @@ describe('androidBack', () => {
     expect(seen).toEqual(['menu:Escape']);
   });
 
+  /**
+   * The context menu renders inside the app root, before the sheet portals at the end of the body.
+   * A menu opened from the queue sheet sat above it on screen, yet the back key closed the sheet
+   * and left the menu standing.
+   */
+  it('closes a menu before the sheet it was opened from, whatever the DOM order', () => {
+    add('<div class="context-menu" id="menu"></div>');
+    add('<div class="mobile-sheet" id="sheet"></div>');
+    const seen: string[] = [];
+    document.getElementById('sheet')!.addEventListener('keydown', e => seen.push(`sheet:${e.key}`));
+    document.getElementById('menu')!.addEventListener('keydown', e => seen.push(`menu:${e.key}`));
+    expect(topOverlay()?.id).toBe('menu');
+    expect(closeTopOverlay()).toBe(true);
+    expect(seen).toEqual(['menu:Escape']);
+  });
+
   it('sends Escape through the focused field, so it reaches the overlay and the document', () => {
     add('<div class="mobile-search-overlay" id="search"><input id="q" /></div>');
     const input = document.getElementById('q') as HTMLInputElement;
