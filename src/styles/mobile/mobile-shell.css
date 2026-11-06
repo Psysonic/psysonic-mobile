@@ -199,8 +199,11 @@ html[data-mobile-app] .mobile-search-overlay {
   position: relative;
 }
 
-/* Cross in the middle of the ring: tapping a running download stops it. */
-.mobile-download-btn__cancel {
+/* Cross in the middle of the ring: tapping a running download stops it. The clock
+   marks one that waits for a free slot; its ring stands still and dashed, since a
+   turning one read as stuck loading. */
+.mobile-download-btn__cancel,
+.mobile-download-btn__waiting {
   position: absolute;
   inset: 0;
   margin: auto;
@@ -229,19 +232,13 @@ html[data-mobile-app] .mobile-search-overlay {
   transition: stroke-dashoffset 0.3s ease;
 }
 
-.mobile-download-btn[data-status='queued'] .mobile-download-btn__ring {
-  animation: mobile-download-wait 1.1s linear infinite;
+.mobile-download-btn__waiting {
+  color: var(--text-muted);
 }
 
-@keyframes mobile-download-wait {
-  from { transform: rotate(-90deg); }
-  to { transform: rotate(270deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mobile-download-btn[data-status='queued'] .mobile-download-btn__ring {
-    animation: none;
-  }
+.mobile-download-btn[data-status='queued'] .mobile-download-btn__track {
+  stroke: var(--text-muted);
+  stroke-dasharray: 3 3.2;
 }
 
 /* Waiting for Wi-Fi: the ring stands still in a muted colour. */

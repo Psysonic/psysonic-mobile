@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Check, HardDriveDownload, X } from 'lucide-react';
+import { Check, Clock, HardDriveDownload, X } from 'lucide-react';
 import { useConfirmModalStore } from '@/store/confirmModalStore';
 import { useDownloadKeyHeldForWifi } from '@/features/offline';
 import { resolveHeldDownload, startTouchDownload } from '@/features/mobileShell/utils/meteredDownload';
@@ -25,6 +25,8 @@ const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 /**
  * Download toggle of the album and playlist pages: the desktop's offline icon,
  * a ring with a cross in it while it loads, a tick once it is on the device.
+ * A download that waits for a free slot shows a still, dashed ring with a clock:
+ * a turning ring read as "stuck loading" (TestFlight feedback G63).
  * The tick asks before it removes the download; the cross stops a running one
  * at once (unlike the desktop, where a running download has no stop here), and
  * a queued one can be taken back out of the queue. On mobile data a new download first asks
@@ -73,6 +75,7 @@ export default function MobileDownloadButton({
         ? `${t('connection.downloadProgress', { done, total })}, ${t('common.cancel')}`
         : status === 'queued' ? t('connection.downloadQueued') : t('connection.download');
   const filled = status === 'downloading' && total > 0 ? done / total : 0;
+  const waiting = status === 'queued' && !heldForWifi;
 
   return (
     <button
@@ -89,15 +92,20 @@ export default function MobileDownloadButton({
       ) : (
         <svg className="mobile-download-btn__ring" viewBox="0 0 24 24" aria-hidden="true">
           <circle className="mobile-download-btn__track" cx="12" cy="12" r={RING_RADIUS} />
-          <circle
-            className="mobile-download-btn__fill"
-            cx="12"
-            cy="12"
-            r={RING_RADIUS}
-            strokeDasharray={RING_LENGTH}
-            strokeDashoffset={status === 'queued' ? RING_LENGTH * 0.75 : RING_LENGTH * (1 - filled)}
-          />
+          {!waiting && (
+            <circle
+              className="mobile-download-btn__fill"
+              cx="12"
+              cy="12"
+              r={RING_RADIUS}
+              strokeDasharray={RING_LENGTH}
+              strokeDashoffset={status === 'queued' ? RING_LENGTH * 0.75 : RING_LENGTH * (1 - filled)}
+            />
+          )}
         </svg>
+      )}
+      {waiting && (
+        <Clock className="mobile-download-btn__waiting" size={11} strokeWidth={2.6} aria-hidden="true" />
       )}
       {status === 'downloading' && !heldForWifi && (
         <X className="mobile-download-btn__cancel" size={11} strokeWidth={2.8} aria-hidden="true" />
