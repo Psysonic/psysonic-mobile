@@ -86,6 +86,7 @@ import '@/features/playback/store/previewPlayerVolumeSync';
 import '@/features/playback/store/queueResolverBridge';
 import '@/features/playback/store/replayGainMetadataSync';
 import '@/app/musicLibraryCatalogReloadBridge';
+import '@/app/downloadCoverKeepBridge';
 import { useThemeStore } from '../store/themeStore';
 import { useFontStore } from '../store/fontStore';
 import { useEqStore } from '../store/eqStore';

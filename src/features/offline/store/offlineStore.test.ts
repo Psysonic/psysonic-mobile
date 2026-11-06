@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   libraryUpsertSongsFromApi: vi.fn(async () => undefined),
   getAlbumForServer: vi.fn(),
   getArtistForServer: vi.fn(),
+  keepDownloadCovers: vi.fn(),
 }));
 
 vi.mock('@/lib/api/subsonicStreamUrl', () => ({
@@ -41,6 +42,10 @@ vi.mock('@/lib/api/subsonicLibrary', () => ({
 
 vi.mock('@/lib/api/subsonicArtists', () => ({
   getArtistForServer: mocks.getArtistForServer,
+}));
+
+vi.mock('@/features/offline/utils/downloadCoverSeam', () => ({
+  keepDownloadCovers: mocks.keepDownloadCovers,
 }));
 
 import { useOfflineStore } from '@/features/offline/store/offlineStore';
@@ -145,6 +150,14 @@ describe('offlineStore download producer', () => {
       'download_track_local',
       expect.objectContaining({ url: 'https://original.test/srv-a/track-1' }),
     );
+  });
+
+  it('stores the covers of the albums it downloads', async () => {
+    await useOfflineStore.getState().downloadAlbum(
+      'album-1', 'Album', 'Artist', undefined, undefined, [SONG], 'srv-a',
+    );
+
+    await waitFor(() => expect(mocks.keepDownloadCovers).toHaveBeenCalledWith([SONG], 'srv-a'));
   });
 
   it('uses a unique native download id for same-millisecond retries', async () => {

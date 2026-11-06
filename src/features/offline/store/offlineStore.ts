@@ -31,6 +31,7 @@ import {
   pendingOfflinePinSongs,
 } from '@/features/offline/utils/offlineLibraryHelpers';
 import { librarySqlServerId } from '@/lib/api/coverCache';
+import { keepDownloadCovers } from '@/features/offline/utils/downloadCoverSeam';
 import { resolveIndexKey, serverIndexKeyForProfile } from '@/lib/server/serverIndexKey';
 import { navidromeCanonicalBootstrapIsActive } from '@/lib/server/navidromeCanonicalCheckpointStatus';
 import { isSmartPlaylist } from '@/lib/format/playlistClassification';
@@ -251,6 +252,8 @@ async function runOfflinePinDownloadWithServerLease(
   await waitForOfflineDeletion(albumId, serverId, type);
   if (isCancelled()) return 'cancelled';
   cancelledDownloads.delete(cancelKey);
+  // Runs beside the tracks; a download used to keep only them, so covers were missing offline.
+  keepDownloadCovers(songs, serverId);
 
   const trackIds = [...new Set([...songs.map(s => s.id), ...(task.retainedTrackIds ?? [])])];
   const jobStore = useOfflineJobStore;
