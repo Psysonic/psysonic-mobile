@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest';
 import '@/app/MainApp';
 
 import { isMediaResolverRegistered } from '@/store/mediaResolver';
+import { isDownloadCoverKeeperRegistered } from '@/features/offline/utils/downloadCoverSeam';
 import { isOrbitRuntimeRegistered } from '@/store/orbitRuntime';
 import { isPlaybackEngineBridgeRegistered } from '@/store/playbackEngineBridge';
 
@@ -32,5 +33,9 @@ describe('seam registration boot smoke', () => {
 
   it('registers the playback-engine bridge (not the no-op / null default)', () => {
     expect(isPlaybackEngineBridgeRegistered()).toBe(true);
+  });
+
+  it('registers the download cover keeper, so downloads keep their covers offline', () => {
+    expect(isDownloadCoverKeeperRegistered()).toBe(true);
   });
 });
