@@ -45,6 +45,9 @@ export type CardGridRowHeightVariant =
 /** Album table row height in CSS px — 40px cover thumb plus vertical padding. */
 export const ALBUM_TABLE_ROW_HEIGHT_PX = 48;
 
+/** Touch shell album list row: the touch rows' 52px minimum plus the 1px separator. */
+export const ALBUM_TOUCH_ROW_HEIGHT_PX = 53;
+
 /**
  * `max` is only for variants whose height does not follow the cell.
  *
@@ -83,6 +86,8 @@ const VARIANT: Record<CardGridRowHeightVariant, { extra: number; min: number; ma
  */
 const MOBILE_SHELL_VARIANT: Partial<Record<CardGridRowHeightVariant, { extra: number; min: number; max?: number }>> = {
   album: { extra: 66, min: 150 },
+  /** The list layout's touch rows (`AlbumListTouch`), pinned like the table rows. */
+  albumTableRow: { extra: 0, min: ALBUM_TOUCH_ROW_HEIGHT_PX, max: ALBUM_TOUCH_ROW_HEIGHT_PX },
 };
 
 export function estimateRowHeightPx(cellWidthPx: number, variant: CardGridRowHeightVariant): number {

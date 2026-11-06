@@ -95,6 +95,19 @@ export default function MobileOrbitStartSheet({ onClose }: { onClose: () => void
         <p className="mobile-orbit-form__helper">{t('orbit.helperClearQueue')}</p>
       </section>
 
+      <section className="mobile-orbit-form__field">
+        <div className="mobile-form-group">
+          <label className="mobile-form-group__row">
+            <span>{t('orbit.settingAutoShuffle')}</span>
+            <span className="toggle-switch">
+              <input type="checkbox" checked={form.autoShuffle} onChange={e => form.setAutoShuffle(e.target.checked)} />
+              <span className="toggle-track" />
+            </span>
+          </label>
+        </div>
+        <p className="mobile-orbit-form__helper">{t('orbit.settingAutoShuffleHint')}</p>
+      </section>
+
       {form.error && <p className="mobile-orbit-form__error" role="alert">{form.error}</p>}
 
       <button

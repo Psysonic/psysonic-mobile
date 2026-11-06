@@ -12,7 +12,10 @@ import { useLocation, useNavigate } from 'react-router';
 import {
   ListPlus, Search, Trash2, X,
 } from 'lucide-react';
-import type { ColDef } from '@/lib/hooks/useTracklistColumns';
+import { fittedWidth, type ColDef } from '@/lib/hooks/useTracklistColumns';
+import { TracklistHeader } from '@/ui/tracklist/TracklistHeader';
+import { TracklistViewport, TRACKLIST_STICKY_HEADER_PX } from '@/ui/tracklist/TracklistViewport';
+import { measureColumnContent, songColumnTexts } from '@/ui/tracklist/measureColumnContent';
 import type { SubsonicSong } from '@/lib/api/subsonicTypes';
 import type { Track } from '@/lib/media/trackTypes';
 import { usePlayerStore } from '@/features/playback/store/playerStore';
@@ -33,21 +36,24 @@ import { navigateToAlbumDetail } from '@/lib/navigation/albumDetailNavigation';
 import { usePlaylistTracklistScrollReset } from '@/features/playlist/hooks/usePlaylistTracklistScrollReset';
 import { useTouchListReorder } from '@/lib/dnd/useTouchListReorder';
 
-const PL_CENTERED = new Set(['favorite', 'rating', 'duration', 'playCount', 'bpm']);
+const PL_SORTABLE = new Set(['title', 'artist', 'favorite', 'rating', 'duration', 'album']);
 
 interface Props {
   // Column config / picker
   allColumns: readonly ColDef[];
   visibleCols: ColDef[];
   gridStyle: React.CSSProperties;
+  colWidths: Record<string, number>;
+  contentWidth: number;
+  setColumnWidth: (key: string, px: number) => void;
+  moveColumn: (key: string, targetKey: string, side: 'before' | 'after') => void;
   colVisible: Set<string>;
   toggleColumn: (key: string) => void;
   resetColumns: () => void;
   pickerOpen: boolean;
   setPickerOpen: React.Dispatch<React.SetStateAction<boolean>>;
   pickerRef: React.RefObject<HTMLDivElement | null>;
-  startResize: (e: React.MouseEvent, colIndex: number, direction?: 1 | -1) => void;
-  startFlexColumnResize: (e: React.MouseEvent, colIndex: number, direction?: 1 | -1) => void;
+  startResize: (e: React.PointerEvent, key: string) => void;
   tracklistRef: React.RefObject<HTMLDivElement | null>;
 
   // Data
@@ -105,8 +111,9 @@ interface Props {
 }
 
 export default function PlaylistTracklist({
-  allColumns, visibleCols, gridStyle, colVisible, toggleColumn, resetColumns,
-  pickerOpen, setPickerOpen, pickerRef, startResize, startFlexColumnResize, tracklistRef,
+  allColumns, visibleCols, gridStyle, colWidths, contentWidth, setColumnWidth, moveColumn,
+  colVisible, toggleColumn, resetColumns,
+  pickerOpen, setPickerOpen, pickerRef, startResize, tracklistRef,
   songs, displayedSongs, displayedTracks, isFiltered, hasActiveFilter, id, serverId,
   sortKey, setSortKey, sortDir, setSortDir, sortClickCount, setSortClickCount,
   selectedIds, setSelectedIds, allSelected, toggleAll, toggleSelect,
@@ -303,6 +310,8 @@ export default function PlaylistTracklist({
     estimateSize: () => (IS_MOBILE_SHELL ? 53 : 48),
     overscan: Math.max(8, Math.ceil(viewportH / 48)),
     scrollMargin,
+    // Keep a row reached with the arrow keys clear of the sticky header.
+    ...(IS_MOBILE_SHELL ? {} : { scrollPaddingStart: TRACKLIST_STICKY_HEADER_PX }),
     getItemKey: i => `${displayedSongs[i].id}:${i}`,
   });
 
@@ -355,210 +364,78 @@ export default function PlaylistTracklist({
     dropIndicatorY = (dropTargetIdx.before ? start : start + size) - scrollMargin;
   }
 
-  return (
-    <>
-      <TracklistColumnPicker
-        allColumns={allColumns}
-        pickerRef={pickerRef}
-        pickerOpen={pickerOpen}
-        setPickerOpen={setPickerOpen}
-        colVisible={colVisible}
-        toggleColumn={toggleColumn}
-        resetColumns={resetColumns}
-        t={t}
-      />
-    <div className="tracklist" data-preview-loc="playlists" ref={tracklistRef} {...cursor.listProps}>
+  const handleSort = (key: string) => {
+    if (!PL_SORTABLE.has(key)) return;
+    if (sortKey === key) {
+      const nextCount = sortClickCount + 1;
+      if (nextCount >= 3) {
+        setSortKey('natural');
+        setSortDir('asc');
+        setSortClickCount(0);
+      } else {
+        setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+        setSortClickCount(nextCount);
+      }
+    } else {
+      setSortKey(key as PlaylistSortKey);
+      setSortDir('asc');
+      setSortClickCount(1);
+    }
+  };
 
-      {/* Bulk action bar */}
-      {selectedIds.size > 0 && (
-        <div className="bulk-action-bar">
-          <span className="bulk-action-count">
-            {t('common.bulkSelected', { count: selectedIds.size })}
-          </span>
-          {policy.canRate && (
-            <BulkTrackRating
-              tracks={selectedSongs}
-              ratings={ratings}
-              onRate={(song, rating) => handleRate(song.id, rating)}
-            />
-          )}
-          <div className="bulk-pl-picker-wrap">
-            <button
-              className="btn btn-surface btn-sm"
-              onClick={() => setShowBulkPlPicker(v => !v)}
-            >
-              <ListPlus size={14} />
-              {t('common.bulkAddToPlaylist')}
-            </button>
-            {showBulkPlPicker && (
-              <AddToPlaylistSubmenu
-                songIds={[...selectedIds]}
-                serverId={serverId}
-                onDone={() => { setShowBulkPlPicker(false); setSelectedIds(new Set()); }}
-                dropDown
+  const handleAutofit = (colIndex: number) => {
+    const col = visibleCols[colIndex];
+    const root = tracklistRef.current;
+    if (!col || !root) return;
+    const content = measureColumnContent(root, col.key, songColumnTexts(displayedSongs, col.key));
+    setColumnWidth(col.key, fittedWidth(content, col.minWidth));
+  };
+
+  const header = (
+    <TracklistHeader
+      cols={visibleCols}
+      gridStyle={gridStyle}
+      renderLabel={col => {
+        if (col.key === 'num') {
+          return (
+            <span className="track-num">
+              <span
+                className={`bulk-check${allSelected ? ' checked' : ''}${selectedIds.size > 0 ? ' bulk-check-visible' : ''}`}
+                onClick={e => { e.stopPropagation(); toggleAll(); }}
+                style={{ cursor: 'pointer' }}
               />
-            )}
-          </div>
-          {!tracksReadOnly && (
-          <button
-            className="btn btn-surface btn-sm"
-            style={{ color: 'var(--danger)' }}
-            onClick={bulkRemove}
-          >
-            <Trash2 size={14} />
-            {t('common.bulkRemoveFromPlaylist')}
-          </button>
-          )}
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={() => setSelectedIds(new Set())}
-          >
-            <X size={13} />
-            {t('common.bulkClear')}
-          </button>
-        </div>
-      )}
+              <span className="track-num-number">#</span>
+            </span>
+          );
+        }
+        return col.i18nKey ? t(`albumDetail.${col.i18nKey}`) : '';
+      }}
+      sort={sortKey !== 'natural' ? { key: sortKey, dir: sortDir } : null}
+      isSortable={key => PL_SORTABLE.has(key)}
+      onSort={handleSort}
+      onResizeStart={(e, colIndex) => {
+        const col = visibleCols[colIndex];
+        if (col) startResize(e, col.key);
+      }}
+      onAutofit={handleAutofit}
+      onResizeBy={(colIndex, deltaPx) => {
+        const col = visibleCols[colIndex];
+        if (col) setColumnWidth(col.key, (colWidths[col.key] ?? col.defaultWidth) + deltaPx);
+      }}
+      onReorder={moveColumn}
+      menu={{
+        allColumns,
+        colVisible,
+        toggleColumn,
+        resetColumns,
+        onFitAll: () => visibleCols.forEach((_, i) => handleAutofit(i)),
+      }}
+      widthOf={key => colWidths[key] ?? 0}
+      t={t}
+    />
+  );
 
-      {/* Header */}
-      <div style={{ position: 'relative' }}>
-        <div className="tracklist-header tracklist-va" style={gridStyle}>
-          {visibleCols.map((colDef, colIndex) => {
-            const key = colDef.key;
-            const isLastCol = colIndex === visibleCols.length - 1;
-            const isCentered = PL_CENTERED.has(key);
-            const label = colDef.i18nKey ? t(`albumDetail.${colDef.i18nKey}`) : '';
-            const sortableCols = new Set(['title', 'artist', 'favorite', 'rating', 'duration', 'album']);
-            const canSort = sortableCols.has(key);
-            const isSortActive = canSort && sortKey === key;
-
-            const handleSortClick = () => {
-              if (!canSort) return;
-              if (sortKey === key) {
-                const nextCount = sortClickCount + 1;
-                if (nextCount >= 3) {
-                  setSortKey('natural');
-                  setSortDir('asc');
-                  setSortClickCount(0);
-                } else {
-                  setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-                  setSortClickCount(nextCount);
-                }
-              } else {
-                setSortKey(key as PlaylistSortKey);
-                setSortDir('asc');
-                setSortClickCount(1);
-              }
-            };
-
-            const renderSortIndicator = () => {
-              if (!isSortActive) return null;
-              return (
-                <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}>
-                  {sortDir === 'asc' ? '▲' : '▼'}
-                </span>
-              );
-            };
-
-            if (key === 'num') {
-              const titleColIndex = visibleCols.findIndex(c => c.key === 'title');
-              const titleCol = titleColIndex >= 0 ? visibleCols[titleColIndex] : undefined;
-              return (
-                <div key="num" className="track-num" style={{ position: 'relative' }}>
-                  <span
-                    className={`bulk-check${allSelected ? ' checked' : ''}${selectedIds.size > 0 ? ' bulk-check-visible' : ''}`}
-                    onClick={e => { e.stopPropagation(); toggleAll(); }}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <span className="track-num-number">#</span>
-                  {titleCol?.flex && (
-                    <div
-                      className="col-resize-handle"
-                      onMouseDown={e => startFlexColumnResize(e, titleColIndex, 1)}
-                    />
-                  )}
-                </div>
-              );
-            }
-            if (key === 'title') {
-              const hasNextCol = colIndex + 1 < visibleCols.length;
-              return (
-                <div
-                  key="title"
-                  onClick={handleSortClick}
-                  style={{
-                    position: 'relative',
-                    padding: 0,
-                    margin: 0,
-                    minWidth: 0,
-                    overflow: 'hidden',
-                    cursor: canSort ? 'pointer' : 'default',
-                    userSelect: 'none',
-                  }}
-                  className={isSortActive ? 'tracklist-header-cell-active' : ''}
-                >
-                  <div style={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'flex-start', paddingLeft: 12 }}>
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isSortActive ? 600 : 400 }}>{label}</span>
-                    {canSort && renderSortIndicator()}
-                  </div>
-                  {hasNextCol && (
-                    <div
-                      className="col-resize-handle"
-                      onMouseDown={e => startFlexColumnResize(e, colIndex, 1)}
-                    />
-                  )}
-                </div>
-              );
-            }
-            if (key === 'delete') return <div key="delete" />;
-            return (
-              <div
-                key={key}
-                onClick={handleSortClick}
-                style={{
-                  position: 'relative',
-                  padding: 0,
-                  margin: 0,
-                  minWidth: 0,
-                  overflow: 'hidden',
-                  cursor: canSort ? 'pointer' : 'default',
-                  userSelect: 'none',
-                }}
-                className={isSortActive ? 'tracklist-header-cell-active' : ''}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    width: '100%',
-                    height: '100%',
-                    alignItems: 'center',
-                    justifyContent: isCentered ? 'center' : 'flex-start',
-                    paddingLeft: isCentered ? 0 : 12,
-                  }}
-                >
-                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isSortActive ? 600 : 400 }}>{label}</span>
-                  {canSort && renderSortIndicator()}
-                </div>
-                {!isLastCol && key !== 'delete' && (
-                  <div className="col-resize-handle" onMouseDown={e => startResize(e, colIndex, 1)} />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {songs.length === 0 && (
-        <div className="empty-state" style={{ padding: '2rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-          <span>{tracksReadOnly ? t('playlists.smartReadOnlyEmpty') : t('playlists.emptyPlaylist')}</span>
-          {!tracksReadOnly && (
-          <button className="btn btn-primary" onClick={() => setSearchOpen(true)}>
-            <Search size={15} />
-            {t('playlists.addFirstSong')}
-          </button>
-          )}
-        </div>
-      )}
-
+  const rows = (
       <div ref={listWrapRef} style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
       {dropIndicatorY !== null && (
         <div
@@ -613,7 +490,88 @@ export default function PlaylistTracklist({
         );
       })}
       </div>
+  );
 
+  return (
+    <>
+      <TracklistColumnPicker
+        allColumns={allColumns}
+        pickerRef={pickerRef}
+        pickerOpen={pickerOpen}
+        setPickerOpen={setPickerOpen}
+        colVisible={colVisible}
+        toggleColumn={toggleColumn}
+        resetColumns={resetColumns}
+        t={t}
+      />
+    {/* Touch shell: no column header and no table frame, the touch rows fill the width. */}
+    <div className={IS_MOBILE_SHELL ? 'tracklist' : 'tracklist tracklist--model-a'} data-preview-loc="playlists" ref={tracklistRef} {...cursor.listProps}>
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="bulk-action-bar">
+          <span className="bulk-action-count">
+            {t('common.bulkSelected', { count: selectedIds.size })}
+          </span>
+          {policy.canRate && (
+            <BulkTrackRating
+              tracks={selectedSongs}
+              ratings={ratings}
+              onRate={(song, rating) => handleRate(song.id, rating)}
+            />
+          )}
+          <div className="bulk-pl-picker-wrap">
+            <button
+              className="btn btn-surface btn-sm"
+              onClick={() => setShowBulkPlPicker(v => !v)}
+            >
+              <ListPlus size={14} />
+              {t('common.bulkAddToPlaylist')}
+            </button>
+            {showBulkPlPicker && (
+              <AddToPlaylistSubmenu
+                songIds={[...selectedIds]}
+                serverId={serverId}
+                onDone={() => { setShowBulkPlPicker(false); setSelectedIds(new Set()); }}
+                dropDown
+              />
+            )}
+          </div>
+          {!tracksReadOnly && (
+          <button
+            className="btn btn-surface btn-sm"
+            style={{ color: 'var(--danger)' }}
+            onClick={bulkRemove}
+          >
+            <Trash2 size={14} />
+            {t('common.bulkRemoveFromPlaylist')}
+          </button>
+          )}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            <X size={13} />
+            {t('common.bulkClear')}
+          </button>
+        </div>
+      )}
+
+      {songs.length === 0 && (
+        <div className="empty-state" style={{ padding: '2rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+          <span>{tracksReadOnly ? t('playlists.smartReadOnlyEmpty') : t('playlists.emptyPlaylist')}</span>
+          {!tracksReadOnly && (
+          <button className="btn btn-primary" onClick={() => setSearchOpen(true)}>
+            <Search size={15} />
+            {t('playlists.addFirstSong')}
+          </button>
+          )}
+        </div>
+      )}
+
+      {IS_MOBILE_SHELL ? rows : (
+        <TracklistViewport contentWidth={contentWidth} header={header}>{rows}</TracklistViewport>
+      )}
 
     </div>
     </>

@@ -31,6 +31,9 @@ export function useOrbitStartForm(onClose: () => void) {
   const [copied, setCopied]       = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
   const [clearQueue, setClearQueue] = useState(false);
+  // Starts from the host's last choice (off until they turn it on once), so
+  // nobody has to switch the reshuffle off — or on — again for every session.
+  const [autoShuffle, setAutoShuffle] = useState(() => useAuthStore.getState().orbitStartAutoShuffle);
 
   const servers = useAuthStore(state => state.servers);
   const libraryBrowseServerIds = useAuthStore(state => state.libraryBrowseServerIds);
@@ -95,7 +98,8 @@ export function useOrbitStartForm(onClose: () => void) {
 
     setBusy(true);
     try {
-      await startOrbitSession({ name: trimmed, maxUsers, sid, serverId: server.id, clearQueue });
+      await startOrbitSession({ name: trimmed, maxUsers, sid, serverId: server.id, clearQueue, autoShuffle });
+      useAuthStore.getState().setOrbitStartAutoShuffle(autoShuffle);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : t('orbit.errStartFailed'));
@@ -117,6 +121,7 @@ export function useOrbitStartForm(onClose: () => void) {
     name, setName, reshuffleName,
     maxUsers, setMaxUsers,
     clearQueue, setClearQueue,
+    autoShuffle, setAutoShuffle,
     serverId, serverOptions, selectServer, server, serverName, onLan,
     shareLink, copied, hasCopied, onCopy,
     busy, error, onStart,
