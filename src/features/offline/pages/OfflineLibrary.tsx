@@ -41,6 +41,7 @@ import { getMediaDir } from '@/lib/media/mediaDir';
 import { getMediaTierSize } from '@/lib/api/syncfs';
 import { canonicalQueueServerKey, resolveIndexKey } from '@/lib/server/serverIndexKey';
 import { reconcileAllLibraryTiersFromDisk } from '@/features/offline/utils/libraryTierReconcile';
+import { showCardsThenReconcile } from '@/features/offline/utils/offlineLibraryRefresh';
 import {
   inferPinSourcesFromLibraryIndex,
   restoreOfflineLibraryPinSources,
@@ -124,36 +125,40 @@ export default function OfflineLibrary() {
   );
   const showServerLabels = servers.length > 1;
 
-  const refreshCardsFromDisk = useCallback(async (): Promise<OfflineLibraryCard[]> => {
-    await Promise.all([reconcileAllLibraryTiersFromDisk(), refreshOfflineDiskSizes()]);
+  const readCardsFromIndex = useCallback(async (): Promise<OfflineLibraryCard[]> => {
     restoreOfflineLibraryPinSources();
     await inferPinSourcesFromLibraryIndex();
     const groups = useLocalPlaybackStore.getState().listPinnedGroups()
       .filter(group => group.pinSource.kind !== 'library');
     const hydrated = await hydrateOfflineLibraryCards(groups);
     return hydrated.filter(card => offlineTrackCount(card) > 0);
-  }, [refreshOfflineDiskSizes]);
+  }, []);
+
+  const reconcileWithDisk = useCallback(
+    () => Promise.all([reconcileAllLibraryTiersFromDisk(), refreshOfflineDiskSizes()]),
+    [refreshOfflineDiskSizes],
+  );
 
   useEffect(() => {
     const generation = ++cardsRefreshGenerationRef.current;
     let cancelled = false;
+    const isCurrent = () => !cancelled && generation === cardsRefreshGenerationRef.current;
     if (!hasLoadedOnceRef.current) {
       setLoading(true);
     }
-    // React Compiler set-state-in-effect rule: state set from an async result resolved in this effect.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void refreshCardsFromDisk().then(hydrated => {
-      if (cancelled || generation !== cardsRefreshGenerationRef.current) return;
+    void showCardsThenReconcile(readCardsFromIndex, reconcileWithDisk, hydrated => {
+      if (!isCurrent()) return false;
       setCards(hydrated);
       setLoading(false);
       hasLoadedOnceRef.current = true;
+      return true;
     }).catch(() => {
-      if (cancelled || generation !== cardsRefreshGenerationRef.current) return;
+      if (!isCurrent()) return;
       setLoading(false);
       hasLoadedOnceRef.current = true;
     });
     return () => { cancelled = true; };
-  }, [pinRefreshKey, mediaDir, favoritesTrackCount, refreshCardsFromDisk]);
+  }, [pinRefreshKey, mediaDir, favoritesTrackCount, readCardsFromIndex, reconcileWithDisk]);
 
   const handleDeleteCard = useCallback((card: OfflineLibraryCard) => {
     cardsRefreshGenerationRef.current += 1;
@@ -172,7 +177,10 @@ export default function OfflineLibrary() {
 
   useEffect(() => {
     const refresh = () => {
-      void refreshCardsFromDisk().then(hydrated => setCards(hydrated)).catch(() => {});
+      void showCardsThenReconcile(readCardsFromIndex, reconcileWithDisk, hydrated => {
+        setCards(hydrated);
+        return true;
+      }).catch(() => {});
     };
     const onVisible = () => {
       if (document.visibilityState === 'visible') refresh();
@@ -183,7 +191,7 @@ export default function OfflineLibrary() {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', refresh);
     };
-  }, [refreshCardsFromDisk]);
+  }, [readCardsFromIndex, reconcileWithDisk]);
 
   const countByType = (type: FilterType) => {
     if (type === 'all') return cards.length;
