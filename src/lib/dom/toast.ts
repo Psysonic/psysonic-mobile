@@ -4,7 +4,9 @@
  * notices at once pile up from the bottom, the newest lowest.
  */
 
-export type ToastVariant = 'error' | 'info' | 'warning' | 'success';
+import { IS_MOBILE_SHELL } from '@/lib/util/platform';
+
+export type ToastVariant ='error' | 'info' | 'warning' | 'success';
 
 interface VariantLook {
   glyph: string;
@@ -79,7 +81,8 @@ function buildNotice(text: string, look: VariantLook): HTMLElement {
     alignItems: 'center',
     gap: '10px',
     width: 'max-content',
-    maxWidth: '480px',
+    // A phone is narrower than the desktop cap; centred at 480 px the text ran off both edges.
+    maxWidth: IS_MOBILE_SHELL ? 'calc(100vw - 32px)' : '480px',
     padding: '10px 16px',
     borderRadius: '8px',
     border: `1px solid ${look.color}`,

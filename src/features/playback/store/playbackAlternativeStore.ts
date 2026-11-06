@@ -87,18 +87,19 @@ export function clearUnavailablePlaybackFailures(): void {
   unavailableQueueSlots.clear();
 }
 
+/** Opens the "Couldn't play" dialog for a failure; returns whether the dialog now shows it. */
 export function reportPlaybackSourceFailure(args: {
   generation: number;
   queueIndex: number;
   queueItems: QueueItemRef[];
   track: Track | null;
   detail: string;
-}, onUnavailable?: () => void): void {
+}, onUnavailable?: () => void): boolean {
   const expectedRef = args.queueItems[args.queueIndex];
-  if (!expectedRef || !args.track) return;
+  if (!expectedRef || !args.track) return false;
 
   const key = failureKey(args.generation, args.queueIndex, expectedRef);
-  if (lastFailureKey === key) return;
+  if (lastFailureKey === key) return usePlaybackAlternativeStore.getState().failure?.key === key;
   lastFailureKey = key;
 
   const failure: PlaybackSourceFailure = {
@@ -140,6 +141,7 @@ export function reportPlaybackSourceFailure(args: {
     usePlaybackAlternativeStore.setState({ status: 'error', sources: [] });
     onUnavailable?.();
   });
+  return true;
 }
 
 export function setPlaybackAlternativeSelecting(source: LibraryEntitySourceDto | null): void {

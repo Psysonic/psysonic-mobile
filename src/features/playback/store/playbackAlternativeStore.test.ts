@@ -140,6 +140,25 @@ describe('reportPlaybackSourceFailure', () => {
     await waitFor(() => expect(usePlaybackAlternativeStore.getState().status).toBe('ready'));
     expect(unavailable).not.toHaveBeenCalled();
   });
+
+  it('says whether the dialog shows the failure', () => {
+    mocks.resolveSources.mockResolvedValue([]);
+    const args = {
+      generation: 1,
+      queueIndex: 0,
+      queueItems: [{ serverId: 'srv-a', trackId: 'failed' }],
+      track: makeTrack({ id: 'failed', serverId: 'srv-a' }),
+      detail: 'decode error',
+    };
+
+    expect(reportPlaybackSourceFailure({ ...args, track: null })).toBe(false);
+    expect(reportPlaybackSourceFailure(args)).toBe(true);
+    // The same failure again while its dialog is open: still shown there.
+    expect(reportPlaybackSourceFailure(args)).toBe(true);
+    // Dismissed: the repeat no longer has a dialog to show it.
+    usePlaybackAlternativeStore.getState().close();
+    expect(reportPlaybackSourceFailure(args)).toBe(false);
+  });
 });
 
 describe('unavailable playback failure cycle', () => {

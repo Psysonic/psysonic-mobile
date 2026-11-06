@@ -27,6 +27,12 @@ describe('showToast stacking', () => {
     expect(first.isConnected).toBe(false);
     expect(second.style.bottom).toBe('100px');
   });
+
+  it('keeps the 480 px cap on the desktop', () => {
+    showToast('wide', 1000);
+    const toasts = document.querySelectorAll<HTMLElement>('.psysonic-toast');
+    expect(toasts[toasts.length - 1].style.maxWidth).toBe('480px');
+  });
 });
 
 describe('showToast for screen readers', () => {
