@@ -2072,6 +2072,16 @@ html[data-mobile-app]:has(.mobile-sheet-backdrop) :is(
   color: var(--text-primary);
   font-size: 14px;
   font-weight: 500;
+  max-width: 100%;
+}
+
+/* The chip is one line high: a long name (several artists joined) ends in an ellipsis
+   instead of wrapping out of the chip. */
+.app-shell[data-mobile-app] .artist-ext-link__label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .mobile-chip-row .btn.btn-sort-active,

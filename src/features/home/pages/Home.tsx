@@ -780,7 +780,7 @@ export default function Home() {
                 navigate(buildArtistDetailPath(a.id, { serverId: a.serverId }));
               }}
             >
-              {a.name}
+              <span className="artist-ext-link__label">{a.name}</span>
             </button>
           ))}
           <button className="artist-ext-link" onClick={() => navigate('/artists')}
