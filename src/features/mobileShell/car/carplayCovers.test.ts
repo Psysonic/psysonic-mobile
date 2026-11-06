@@ -79,4 +79,26 @@ describe('attachCarPlayCovers', () => {
     expect(chunks[0][0]).toBe(0);
     expect(chunks.flat()).toContain(99);
   });
+
+  it('tells covers it downloaded apart from covers that were already on disk', async () => {
+    // Every cover is on disk; rows past the first 60 are only looked up in the follow-up.
+    covers.peek.mockImplementation(async (refs: Array<{ fetchCoverArtId: string }>) =>
+      Object.fromEntries(refs.map(ref => [`${ref.fetchCoverArtId}:256`, `/covers/${ref.fetchCoverArtId}/256.webp`])));
+    const sections = [{ items: Array.from({ length: 100 }, (_, i) => row(String(i))) }];
+    const refresh = await attachCarPlayCovers(sections);
+    const reports: boolean[] = [];
+    await refresh!((_chunk, downloaded) => reports.push(downloaded));
+    expect(covers.ensure).not.toHaveBeenCalled();
+    expect(reports).toEqual([false]);
+  });
+
+  it('marks a chunk it had to download as downloaded', async () => {
+    covers.peek
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ 'al-a:256': '/covers/a/256.webp' });
+    const refresh = await attachCarPlayCovers([{ items: [row('a')] }]);
+    const reports: boolean[] = [];
+    await refresh!((_chunk, downloaded) => reports.push(downloaded));
+    expect(reports).toEqual([true]);
+  });
 });
