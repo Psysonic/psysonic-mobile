@@ -42,12 +42,15 @@ import { getMediaTierSize } from '@/lib/api/syncfs';
 import { canonicalQueueServerKey, resolveIndexKey } from '@/lib/server/serverIndexKey';
 import { reconcileAllLibraryTiersFromDisk } from '@/features/offline/utils/libraryTierReconcile';
 import { showCardsThenReconcile } from '@/features/offline/utils/offlineLibraryRefresh';
+import { useThrottledOnChange } from '@/features/offline/hooks/useThrottledOnChange';
 import {
   inferPinSourcesFromLibraryIndex,
   restoreOfflineLibraryPinSources,
 } from '@/features/offline/utils/legacyOfflineFileMigration';
 
 const OFFLINE_CARD_COVER_CSS_PX = 300;
+/** Measuring the download folders walks them, so a running download re-measures at most this often. */
+const DISK_SIZE_REFRESH_MS = 5000;
 const OFFLINE_CACHE_GRID_KEY = '__offline_cache__';
 const OFFLINE_FAVORITES_GRID_KEY = '__offline_favorites__';
 
@@ -174,6 +177,13 @@ export default function OfflineLibrary() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshOfflineDiskSizes();
   }, [favoritesTrackCount, mediaDir, refreshOfflineDiskSizes]);
+
+  // A running library download adds tracks without touching the cards; without this
+  // the size line stayed at its first value until the page was opened again.
+  const libraryTrackCount = useLocalPlaybackStore(s => s.listPinnedGroups()
+    .filter(g => g.pinSource.kind === 'library')
+    .reduce((n, g) => n + g.trackIds.length, 0));
+  useThrottledOnChange(libraryTrackCount, () => { void refreshOfflineDiskSizes(); }, DISK_SIZE_REFRESH_MS);
 
   useEffect(() => {
     const refresh = () => {
