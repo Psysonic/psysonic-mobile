@@ -11,7 +11,8 @@ import {
   runLocalLiveSearch,
   runNetworkLiveSearch,
 } from '@/lib/library/liveSearchLocal';
-import { raceLiveSearch } from '@/lib/library/searchRace';
+import { raceLiveSearch, searchResultsHaveHits } from '@/lib/library/searchRace';
+import { getConnectionStatus } from '@/lib/network/activeServerReachability';
 import { readyLibraryServerKeys } from '@/lib/library/libraryReady';
 import {
   emitLiveSearchDebug,
@@ -274,6 +275,15 @@ export function useLiveSearchQuery({
               setResults(winner.result);
               setSearchSource(winner.source);
               setOpen(true);
+              // An empty index result says little when the server search failed; without the
+              // notice it read as "No results". Offline, an empty local result is the answer.
+              if (
+                winner.networkFailed
+                && !searchResultsHaveHits(winner.result)
+                && getConnectionStatus() !== 'disconnected'
+              ) {
+                showToast(t('search.liveSearchFailed'), 3200, 'error');
+              }
               const samples = searchResultSamples(winner.result);
               emitLiveSearchDebug('race_winner', {
                 query: q,

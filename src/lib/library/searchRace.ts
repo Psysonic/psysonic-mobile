@@ -10,6 +10,8 @@ export interface SearchRaceWinner<T> {
   source: SearchRaceSource;
   result: T;
   durationMs: number;
+  /** Live search: the network search failed, so an empty result may only mean the index lacks it. */
+  networkFailed?: boolean;
 }
 
 export interface SearchRaceRunner<T> {
@@ -122,6 +124,7 @@ export async function raceLiveSearch(
     let networkMs = 0;
     let raceNotified = false;
     const errors: unknown[] = [];
+    let networkFailed = false;
 
     const notifySettled = () => {
       if (raceNotified || !localDone || !networkDone || !onSettled) return;
@@ -181,7 +184,7 @@ export async function raceLiveSearch(
         resolve({ source: 'network', result: networkResult, durationMs: networkMs });
       } else if (localResult) {
         resolvedWinner = 'local';
-        resolve({ source: 'local', result: localResult, durationMs: localMs });
+        resolve({ source: 'local', result: localResult, durationMs: localMs, networkFailed });
       } else if (errors.length > 0) {
         reject(errors[0]);
       } else {
@@ -224,6 +227,7 @@ export async function raceLiveSearch(
           return;
         }
         errors.push(err);
+        networkFailed = true;
         networkDone = true;
         maybeFinish();
         notifySettled();
