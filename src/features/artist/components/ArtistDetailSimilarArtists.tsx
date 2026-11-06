@@ -60,7 +60,7 @@ export default function ArtistDetailSimilarArtists({
                   serverId: a.serverId ?? serverId,
                 }))}
               >
-                {a.name}
+                <span className="artist-ext-link__label">{a.name}</span>
               </button>
             ))}
         </div>
