@@ -81,8 +81,13 @@ async function peekImages(rows: CoverRow[]): Promise<Map<CoverRow, string>> {
   return found;
 }
 
-/** Downloads the missing covers chunk by chunk, top rows first, reporting each chunk. */
-export type CarPlayCoverRefresh = (onImages: (updates: CarPlayCoverUpdate[]) => void) => Promise<void>;
+/**
+ * Downloads the missing covers chunk by chunk, top rows first, reporting each chunk.
+ * `downloaded` is false for rows further down whose covers were on disk already.
+ */
+export type CarPlayCoverRefresh = (
+  onImages: (updates: CarPlayCoverUpdate[], downloaded: boolean) => void,
+) => Promise<void>;
 
 /**
  * Sets `image` on rows whose cover is already on disk (no network), and returns a
@@ -119,7 +124,7 @@ export async function attachCarPlayCovers(
       const laterRows = await resolve(later);
       const laterOnDisk = await peekImages(laterRows);
       if (laterOnDisk.size > 0) {
-        onImages([...laterOnDisk].map(([row, image]) => ({ section: row.section, row: row.row, image })));
+        onImages([...laterOnDisk].map(([row, image]) => ({ section: row.section, row: row.row, image })), false);
       }
       missing.push(...laterRows.filter(row => !laterOnDisk.has(row)));
     }
@@ -128,7 +133,7 @@ export async function attachCarPlayCovers(
       await coverCacheEnsureBatch(chunk.map(row => row.ref), CARPLAY_COVER_TIER).catch(() => {});
       const fetched = await peekImages(chunk);
       if (fetched.size > 0) {
-        onImages([...fetched].map(([row, image]) => ({ section: row.section, row: row.row, image })));
+        onImages([...fetched].map(([row, image]) => ({ section: row.section, row: row.row, image })), true);
       }
     }
   };

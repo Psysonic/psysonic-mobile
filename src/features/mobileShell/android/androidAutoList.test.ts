@@ -12,7 +12,7 @@ vi.mock('@/features/mobileShell/car/carplayContent', () => ({
   watchCarSongTabs: () => () => {},
   carPlayCommand: mocks.carPlayCommand,
   carPlayState: () => mocks.state,
-  carPlayList: vi.fn(async () => ({
+  carPlayList: vi.fn(async (): Promise<unknown> => ({
     sections: [
       { header: 'Quick play', items: [{ node: 'random', title: 'Random mix', browse: false }] },
       {
@@ -33,6 +33,8 @@ vi.mock('@/features/playback', () => ({
 }));
 vi.mock('@/store/authStore', () => ({ useAuthStore: { subscribe: () => () => {} } }));
 
+import { carPlayList } from '@/features/mobileShell/car/carplayContent';
+import type { CarPlayCoverUpdate } from '@/features/mobileShell/car/carplayCovers';
 import { carListJson, installAndroidAuto } from './androidAuto';
 
 describe('carListJson', () => {
@@ -44,6 +46,38 @@ describe('carListJson', () => {
       { node: 'album|srv|al1', title: 'Record', subtitle: 'Band', browse: true, image: '/c/al1.jpg' },
       expect.objectContaining({ node: 'feed|recentlyPlayed', browse: true }),
     ]);
+  });
+});
+
+describe('carListJson cover follow-up', () => {
+  afterEach(() => {
+    delete (window as unknown as { PsysonicAndroidMedia?: unknown }).PsysonicAndroidMedia;
+  });
+
+  const listWithRefresh = (downloaded: boolean) => {
+    vi.mocked(carPlayList).mockResolvedValueOnce({
+      sections: [{ items: [{ node: 'playlist|srv|p1', title: 'Mix', browse: true }] }],
+      refreshCovers: async (onImages: (updates: CarPlayCoverUpdate[], downloaded: boolean) => void) => {
+        onImages([{ section: 0, row: 70, image: '/c/p70.jpg' }], downloaded);
+      },
+    });
+  };
+
+  it('asks the car to reload the list once covers were downloaded', async () => {
+    const carListsChanged = vi.fn();
+    (window as unknown as { PsysonicAndroidMedia: unknown }).PsysonicAndroidMedia = { carListsChanged };
+    listWithRefresh(true);
+    await carListJson('playlists');
+    await vi.waitFor(() => expect(carListsChanged).toHaveBeenCalledWith(JSON.stringify(['playlists'])));
+  });
+
+  it('does not reload the list for covers that were already on disk (the reload would loop)', async () => {
+    const carListsChanged = vi.fn();
+    (window as unknown as { PsysonicAndroidMedia: unknown }).PsysonicAndroidMedia = { carListsChanged };
+    listWithRefresh(false);
+    await carListJson('playlists');
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(carListsChanged).not.toHaveBeenCalled();
   });
 });
 

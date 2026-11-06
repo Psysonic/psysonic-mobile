@@ -86,9 +86,11 @@ export async function carListJson(node: string): Promise<string> {
   }));
   // Covers not on disk yet: once they are, the car asks for the list again and gets them
   // (it showed rows without covers until the list was opened anew, car test 21.10.).
+  // Only a download counts: rows past the first 60 report covers already on disk on every
+  // request, and reloading for those asked for a long list about ten times a second.
   if (list.refreshCovers) {
     let fetched = false;
-    void list.refreshCovers(() => { fetched = true; })
+    void list.refreshCovers((_updates, downloaded) => { if (downloaded) fetched = true; })
       .catch(() => {})
       .then(() => { if (fetched) host()?.carListsChanged?.(JSON.stringify([node])); });
   }
