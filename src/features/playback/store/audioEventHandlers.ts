@@ -713,12 +713,11 @@ export function handleAudioError(message: string): void {
   const shown = message.length <= ERROR_TOAST_DETAIL_CHARS
     ? message
     : `${message.slice(0, ERROR_TOAST_DETAIL_CHARS)}…`;
-  showToast(`Couldn't play track. ${shown}`, 8000, 'error');
 
   const gen = getPlayGeneration();
   const store = usePlayerStore.getState();
   usePlayerStore.setState({ isPlaying: false, isPlaybackBuffering: false });
-  reportPlaybackSourceFailure({
+  const shownInDialog = reportPlaybackSourceFailure({
     generation: gen,
     queueIndex: store.queueIndex,
     queueItems: store.queueItems,
@@ -737,4 +736,6 @@ export function handleAudioError(message: string): void {
       live.next(false);
     }, 1500);
   });
+  // The dialog carries the same text; a toast on top stacked one per skipped track.
+  if (!shownInDialog) showToast(`Couldn't play track. ${shown}`, 8000, 'error');
 }
