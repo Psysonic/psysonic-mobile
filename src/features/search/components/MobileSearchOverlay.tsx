@@ -233,7 +233,8 @@ export default function MobileSearchOverlay({ onClose, initialQuery }: {
     !isLiveSearchDropdownBlocked(scope)
     && (
       !!share.shareMatch
-      || (results && (results.artists.length || results.albums.length || results.songs.length))
+      // A bare length here made `hasResults` the number 0, which React drew next to the list.
+      || (!!results && results.artists.length + results.albums.length + results.songs.length > 0)
     );
   const showEmpty = !query && !scope;
 

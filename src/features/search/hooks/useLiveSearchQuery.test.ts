@@ -13,6 +13,7 @@ const {
   showToastMock,
   subscribeLibrarySyncProgressMock,
   revisionState,
+  connectionState,
 } = vi.hoisted(() => ({
   libraryGetStatusMock: vi.fn(),
   runLocalLiveSearchMock: vi.fn<(
@@ -25,6 +26,11 @@ const {
   showToastMock: vi.fn(),
   subscribeLibrarySyncProgressMock: vi.fn(async () => () => {}),
   revisionState: { value: 0 },
+  connectionState: { value: 'connected' as 'connected' | 'disconnected' | 'checking' },
+}));
+
+vi.mock('@/lib/network/activeServerReachability', () => ({
+  getConnectionStatus: () => connectionState.value,
 }));
 
 vi.mock('@/lib/api/library', () => ({
@@ -43,7 +49,8 @@ vi.mock('@/lib/library/liveSearchLocal', () => ({
   runNetworkLiveSearch: vi.fn(async () => null),
 }));
 
-vi.mock('@/lib/library/searchRace', () => ({
+vi.mock('@/lib/library/searchRace', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/library/searchRace')>()),
   raceLiveSearch: raceLiveSearchMock,
 }));
 
@@ -406,5 +413,45 @@ describe('useLiveSearchQuery indexIncomplete', () => {
 
     await act(async () => { firstRegistration.resolve(staleUnlisten); });
     expect(staleUnlisten).toHaveBeenCalledOnce();
+  });
+});
+
+describe('useLiveSearchQuery failed network search', () => {
+  const empty = { artists: [], albums: [], songs: [] };
+
+  beforeEach(() => {
+    libraryGetStatusMock.mockReset().mockResolvedValue(readyStatus());
+    raceLiveSearchMock.mockReset().mockResolvedValue({
+      source: 'local', result: empty, durationMs: 1, networkFailed: true,
+    });
+    showToastMock.mockReset();
+    connectionState.value = 'connected';
+    resetAuthStore();
+    useAuthStore.setState({
+      activeServerId: 'srv-1',
+      servers: [{ id: 'srv-1', name: 'S', url: 'https://s.test', username: 'u', password: 'p' }],
+      musicLibraryFilterVersion: 0,
+    });
+    useLibraryIndexStore.setState({ masterEnabled: true });
+  });
+
+  async function search() {
+    vi.useFakeTimers();
+    const params = { ...hookParams(), query: 'sept' };
+    const view = renderHook(() => useLiveSearchQuery(params));
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    view.unmount();
+    vi.useRealTimers();
+  }
+
+  it('reports the failure instead of an empty result alone', async () => {
+    await search();
+    expect(showToastMock).toHaveBeenCalledWith('Search failed — try again', 3200, 'error');
+  });
+
+  it('stays quiet while the server is known to be unreachable', async () => {
+    connectionState.value = 'disconnected';
+    await search();
+    expect(showToastMock).not.toHaveBeenCalled();
   });
 });

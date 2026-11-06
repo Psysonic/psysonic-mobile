@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { raceSearchSources } from './searchRace';
+import { raceLiveSearch, raceSearchSources } from './searchRace';
 
 type RacePayload = { id: string };
 
@@ -96,5 +96,27 @@ describe('raceSearchSources', () => {
       () => stale,
     );
     await expect(winnerPromise).resolves.toBeNull();
+  });
+});
+
+describe('raceLiveSearch', () => {
+  const empty = { artists: [], albums: [], songs: [] };
+
+  it('says the network search failed when the index found nothing', async () => {
+    const winner = await raceLiveSearch(
+      async () => empty,
+      async () => { throw new Error('timeout of 8000ms exceeded'); },
+      () => false,
+    );
+    expect(winner).toMatchObject({ source: 'local', result: empty, networkFailed: true });
+  });
+
+  it('does not count a cancelled network search as failed', async () => {
+    const winner = await raceLiveSearch(
+      async () => empty,
+      async () => null,
+      () => false,
+    );
+    expect(winner?.networkFailed).toBeFalsy();
   });
 });
