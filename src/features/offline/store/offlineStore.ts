@@ -151,6 +151,24 @@ function activeOfflineServerId(
 const OFFLINE_TRACK_CONCURRENCY = 2;
 /** Native download error when the disk reserve would be touched (syncfs `file_transfer/space.rs`). */
 const DISK_FULL_ERROR = 'not enough free disk space';
+/**
+ * Pauses before a failed track is tried again. One short hiccup (the original
+ * check timing out on a busy server) used to leave the album one track short for good.
+ */
+const OFFLINE_TRACK_RETRY_DELAYS_MS = [2000, 5000];
+let offlineTrackRetryDelaysMs: readonly number[] = OFFLINE_TRACK_RETRY_DELAYS_MS;
+
+/** Tests that fail a track on purpose run without the pauses; `null` restores them. */
+export function __test_setOfflineTrackRetryDelays(delays: readonly number[] | null): void {
+  offlineTrackRetryDelaysMs = delays ?? OFFLINE_TRACK_RETRY_DELAYS_MS;
+}
+
+function offlineTrackErrorIsRetryable(error: string | null): boolean {
+  return !!error
+    && error !== 'CANCELLED'
+    && error !== 'VOLUME_NOT_FOUND'
+    && !error.includes(DISK_FULL_ERROR);
+}
 let offlineDiskFullHandler: ((serverId: string) => void) | null = null;
 
 /** Called once per library download that hits a full disk (whole-library pins only). */
@@ -426,11 +444,22 @@ async function runOfflinePinDownloadWithServerLease(
   let failedTracks = 0;
   let nextSongIndex = 0;
   let cancelled = false;
+  const retryAttempts = new Map<string, number>();
+  const retryNotBefore = new Map<string, number>();
 
   const downloadNext = async () => {
     while (!cancelled && !isCancelled()) {
       const song = pendingSongs[nextSongIndex++];
       if (!song) return;
+
+      const retryWait = (retryNotBefore.get(song.id) ?? 0) - Date.now();
+      if (retryWait > 0) {
+        await new Promise(resolve => setTimeout(resolve, retryWait));
+        if (cancelled || isCancelled()) {
+          cancelled = true;
+          return;
+        }
+      }
 
       // Touch shell: on mobile data a download the user did not allow there
       // waits here for Wi-Fi, between tracks and without a transfer slot.
@@ -618,6 +647,24 @@ async function runOfflinePinDownloadWithServerLease(
         if (error === 'CANCELLED') {
           cancelled = true;
           return;
+        }
+
+        const attempt = retryAttempts.get(song.id) ?? 0;
+        if (!localPath && attempt < offlineTrackRetryDelaysMs.length
+          && offlineTrackErrorIsRetryable(error) && !isCancelled()) {
+          retryAttempts.set(song.id, attempt + 1);
+          retryNotBefore.set(song.id, Date.now() + offlineTrackRetryDelaysMs[attempt]!);
+          jobStore.setState(state => ({
+            jobs: state.jobs.map(j =>
+              j.albumId === albumId
+                && (!j.serverId || j.serverId === serverId)
+                && j.trackId === song.id
+                ? { ...j, status: 'queued' }
+                : j,
+            ),
+          }));
+          pendingSongs.push(song);
+          continue;
         }
 
         jobStore.setState(state => ({

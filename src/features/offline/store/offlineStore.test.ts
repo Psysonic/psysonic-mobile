@@ -48,7 +48,7 @@ vi.mock('@/features/offline/utils/downloadCoverSeam', () => ({
   keepDownloadCovers: mocks.keepDownloadCovers,
 }));
 
-import { useOfflineStore } from '@/features/offline/store/offlineStore';
+import { __test_setOfflineTrackRetryDelays, useOfflineStore } from '@/features/offline/store/offlineStore';
 
 const SONG: SubsonicSong = {
   id: 'track-1',
@@ -88,6 +88,8 @@ function downloadResult(trackId: string) {
 }
 
 beforeEach(() => {
+  // Tests that fail a track expect the album to end at once; the retry tests set the pauses.
+  __test_setOfflineTrackRetryDelays([]);
   localStorage.removeItem(NAVIDROME_CANONICAL_BOOTSTRAP_LOCK_KEY);
   resetAuthStore();
   clearOfflinePinTasks();
@@ -1502,5 +1504,68 @@ describe('offlineStore downloadPlaylist classification', () => {
     );
 
     expect(invokeMock).not.toHaveBeenCalledWith('download_track_local', expect.anything());
+  });
+});
+
+describe('offlineStore failed track retry', () => {
+  const PROBE_FAILED = 'trusted original identity unavailable for local download';
+  beforeEach(() => { __test_setOfflineTrackRetryDelays(null); });
+
+  it('tries a failed track again and completes the album', async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      onInvoke('download_track_local', () => {
+        calls += 1;
+        if (calls === 1) throw PROBE_FAILED;
+        return downloadResult('track-1');
+      });
+      await useOfflineStore.getState().downloadAlbum(
+        'album-1', 'Album', 'Artist', undefined, undefined, [SONG], 'srv-a',
+      );
+
+      await vi.advanceTimersByTimeAsync(5000);
+      await vi.waitFor(() => expect(useOfflineJobStore.getState().pinQueue).toEqual([]));
+      expect(calls).toBe(2);
+      const entry = Object.values(useLocalPlaybackStore.getState().entries)[0];
+      expect(entry?.pinSource).toMatchObject({ kind: 'album', sourceId: 'album-1' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('gives a track up after three attempts', async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      onInvoke('download_track_local', () => {
+        calls += 1;
+        throw PROBE_FAILED;
+      });
+      await useOfflineStore.getState().downloadAlbum(
+        'album-1', 'Album', 'Artist', undefined, undefined, [SONG], 'srv-a',
+      );
+
+      await vi.advanceTimersByTimeAsync(20_000);
+      await vi.waitFor(() => expect(useOfflineJobStore.getState().pinQueue).toEqual([]));
+      expect(calls).toBe(3);
+      expect(useLocalPlaybackStore.getState().entries).toEqual({});
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not try a cancelled track again', async () => {
+    let calls = 0;
+    onInvoke('download_track_local', () => {
+      calls += 1;
+      throw 'CANCELLED';
+    });
+    await useOfflineStore.getState().downloadAlbum(
+      'album-1', 'Album', 'Artist', undefined, undefined, [SONG], 'srv-a',
+    );
+
+    await vi.waitFor(() => expect(useOfflineJobStore.getState().pinQueue).toEqual([]));
+    expect(calls).toBe(1);
   });
 });
