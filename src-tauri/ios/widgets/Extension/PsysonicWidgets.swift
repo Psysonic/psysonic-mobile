@@ -83,12 +83,45 @@ enum Palette {
     }
 }
 
+extension Image {
+    /// The home screen's clear and tinted looks draw every widget image in one tint, which
+    /// turns a cover into a white shape. A cover keeps its own colors there.
+    @ViewBuilder
+    func keepsOwnColors() -> some View {
+        if #available(iOS 18.0, *) {
+            self.widgetAccentedRenderingMode(.fullColor)
+        } else {
+            self
+        }
+    }
+}
+
+/// A round button face: the accent with a dark symbol. In the clear and tinted looks iOS
+/// paints both in the same tint, so the symbol would vanish; there it is a light symbol on a
+/// faint circle instead.
+struct RoundFace: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    let symbol: String
+    let accent: Color
+    let size: CGFloat
+    let symbolSize: CGFloat
+
+    var body: some View {
+        let accented = renderingMode == .accented
+        Image(systemName: symbol)
+            .font(.system(size: symbolSize, weight: .bold))
+            .foregroundStyle(accented ? Palette.text : Palette.ink)
+            .frame(width: size, height: size)
+            .background(Circle().fill(accented ? Palette.text.opacity(0.25) : accent))
+    }
+}
+
 struct CoverImage: View {
     let url: URL?
 
     var body: some View {
         if let url, let image = UIImage(contentsOfFile: url.path) {
-            Image(uiImage: image).resizable().scaledToFill()
+            Image(uiImage: image).resizable().keepsOwnColors().scaledToFill()
         } else {
             ZStack {
                 Palette.surface
@@ -119,11 +152,12 @@ struct ToggleButton: View {
 
     var body: some View {
         Button(intent: PsysonicCommandIntent(action: "toggle")) {
-            Image(systemName: playing ? "pause.fill" : "play.fill")
-                .font(.system(size: size * 0.38, weight: .bold))
-                .foregroundStyle(Palette.ink)
-                .frame(width: size, height: size)
-                .background(Circle().fill(accent))
+            RoundFace(
+                symbol: playing ? "pause.fill" : "play.fill",
+                accent: accent,
+                size: size,
+                symbolSize: size * 0.38
+            )
         }
         .buttonStyle(.plain)
     }
@@ -383,11 +417,7 @@ struct MixView: View {
         } else {
             Button(intent: PsysonicCommandIntent(action: "mix")) {
                 VStack(alignment: .leading) {
-                    Image(systemName: "shuffle")
-                        .font(.system(size: 19, weight: .bold))
-                        .foregroundStyle(Palette.ink)
-                        .frame(width: 44, height: 44)
-                        .background(Circle().fill(state.accentColor))
+                    RoundFace(symbol: "shuffle", accent: state.accentColor, size: 44, symbolSize: 19)
                     Spacer(minLength: 0)
                     Text(state.mixTitle)
                         .font(.system(size: 16, weight: .bold))
