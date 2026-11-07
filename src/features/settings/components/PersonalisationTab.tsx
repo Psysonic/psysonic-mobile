@@ -172,19 +172,23 @@ export function PersonalisationTab() {
         </SettingsSubSection>
       </DesktopOnly>
 
-      <SettingsSubSection
-        title={t('sidebar.newReleases')}
-        icon={<Radio size={16} />}
-      >
-        <SettingsGroup>
-          <SettingsToggle
-            label={t('albumExport.settingsShowButton')}
-            desc={t('albumExport.settingsShowButtonDesc')}
-            checked={showNewReleasesExportButton}
-            onChange={setShowNewReleasesExportButton}
-          />
-        </SettingsGroup>
-      </SettingsSubSection>
+      {/* The export button lives in the desktop toolbar of New Releases; the touch
+          header has none, and the export writes to a desktop download folder. */}
+      <DesktopOnly>
+        <SettingsSubSection
+          title={t('sidebar.newReleases')}
+          icon={<Radio size={16} />}
+        >
+          <SettingsGroup>
+            <SettingsToggle
+              label={t('albumExport.settingsShowButton')}
+              desc={t('albumExport.settingsShowButtonDesc')}
+              checked={showNewReleasesExportButton}
+              onChange={setShowNewReleasesExportButton}
+            />
+          </SettingsGroup>
+        </SettingsSubSection>
+      </DesktopOnly>
 
       <SettingsSubSection
         title={t('settings.favoritesLayoutTitle')}

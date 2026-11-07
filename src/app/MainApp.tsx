@@ -184,7 +184,9 @@ export default function MainApp() {
   }, [migrationReady]);
 
   // ── Easter egg: Ctrl+Shift+Alt+N → export new albums image ──
+  // Mobile: see MOBILE.md "Deliberate differences" — no image export on phones.
   useEffect(() => {
+    if (IS_MOBILE_SHELL) return;
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || !e.shiftKey || !e.altKey || e.code !== 'KeyN') return;
       e.preventDefault();
@@ -237,7 +239,7 @@ export default function MainApp() {
               />
             </Routes>
           </Suspense>
-          {exportPickerOpen && <NewAlbumsExportModal onClose={useNewAlbumsExportDialogStore.getState().closeDialog} />}
+          {exportPickerOpen && !IS_MOBILE_SHELL && <NewAlbumsExportModal onClose={useNewAlbumsExportDialogStore.getState().closeDialog} />}
           <ZipDownloadOverlay />
           <FpsOverlay />
         </BlockingMigrationGate>
