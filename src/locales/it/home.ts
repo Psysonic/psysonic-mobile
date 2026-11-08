@@ -1,6 +1,7 @@
 export const home = {
   hero: 'In evidenza',
   starred: 'Preferiti personali',
+  starredEmptyHint: 'Gli album che segni come preferiti appaiono qui.',
   mostPlayed: 'Più ascoltati',
   recentlyPlayed: 'Ascoltati di recente',
   losslessAlbums: 'Album lossless',

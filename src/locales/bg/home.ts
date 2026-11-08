@@ -1,6 +1,7 @@
 export const home = {
   hero: 'Препоръчано',
   starred: 'Лични любими',
+  starredEmptyHint: 'Албумите, които отбележите като любими, се появяват тук.',
   mostPlayed: 'Най-слушани',
   recentlyPlayed: 'Наскоро пуснати',
   losslessAlbums: 'Lossless албуми',

@@ -1,6 +1,7 @@
 export const home = {
   hero: '注目',
   starred: '個人のお気に入り',
+  starredEmptyHint: 'お気に入りに追加したアルバムがここに表示されます。',
   mostPlayed: 'よく再生',
   recentlyPlayed: '最近再生',
   losslessAlbums: 'ロスレスアルバム',

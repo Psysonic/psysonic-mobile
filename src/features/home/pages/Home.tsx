@@ -59,6 +59,8 @@ import {
   shouldOfferHomeLoadMore,
 } from '@/features/home/pages/homeCoverPrefetch';
 import MainstageDiagnosticFrame from '@/features/home/components/MainstageDiagnosticFrame';
+import StarredEmptyRail from '@/features/home/components/StarredEmptyRail';
+import { IS_MOBILE_SHELL } from '@/lib/util/platform';
 import {
   MAINSTAGE_DIAGNOSTIC_SECTION_IDS,
   useMainstageDiagnosticStore,
@@ -809,7 +811,7 @@ export default function Home() {
     ),
     starred: !homeAlbumRowsDisabled && isVisible('starred') && (
       <MainstageDiagnosticFrame sectionId="starred" label={t('home.starred')} active={mainstageDiagnosticsVisible}>
-        <AlbumRow
+        {IS_MOBILE_SHELL && !loading && starred.length === 0 ? <StarredEmptyRail /> : <AlbumRow
         title={t('home.starred')}
         titleLink="/favorites"
         albums={starred}
@@ -819,7 +821,7 @@ export default function Home() {
         artworkSize={HOME_ALBUM_ROW_ARTWORK_SIZE}
         windowArtworkByViewport={HOME_ARTWORK_WINDOWING}
         initialArtworkBudget={HOME_ALBUM_ROW_INITIAL_ARTWORK_BUDGET}
-        />
+        />}
       </MainstageDiagnosticFrame>
     ),
     mostPlayed: !homeAlbumRowsDisabled && isVisible('mostPlayed') && (

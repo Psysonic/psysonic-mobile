@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { useSelectionStore } from '@/store/selectionStore';
 import FavoritesOfflineHeader from '@/features/favorites/components/FavoritesOfflineHeader';
 import FavoritesOfflineRow from '@/features/favorites/components/FavoritesOfflineRow';
+import FavoritesFilterField from '@/features/favorites/components/FavoritesFilterField';
 import { useOfflineBrowseActive } from '@/features/offline';
 import { IS_MOBILE_SHELL } from '@/lib/util/platform';
 import {
@@ -429,6 +430,7 @@ export default function Favorites() {
         <div className="mobile-browse-header">
           <h1 className="mobile-large-title">{t('favorites.title')}</h1>
           <FavoritesOfflineRow />
+          <FavoritesFilterField />
         </div>
       ) : (
         <div className="playlists-header" style={{ marginBottom: '-1.5rem' }}>

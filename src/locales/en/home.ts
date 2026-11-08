@@ -1,6 +1,7 @@
 export const home = {
   hero: 'Featured',
   starred: 'Personal Favorites',
+  starredEmptyHint: 'Albums you mark as favorites appear here.',
   mostPlayed: 'Most Played',
   recentlyPlayed: 'Recently Played',
   losslessAlbums: 'Lossless Albums',
