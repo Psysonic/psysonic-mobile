@@ -2234,6 +2234,11 @@ export type ServerProbeResult = {
 	type: string | null,
 	/**  Server build version when advertised. */
 	serverVersion: string | null,
+	/**
+	 *  Subsonic API protocol level from the envelope `version` (`1.16.1`),
+	 *  when the server advertises one. Informational: nothing compares it.
+	 */
+	apiVersion: string | null,
 	/**  Whether the server advertises OpenSubsonic extensions. */
 	openSubsonic: boolean,
 	/**

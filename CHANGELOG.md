@@ -91,6 +91,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Linux media widgets that look up the application through MPRIS can now resolve Psysonic's icon instead of showing a generic or blank one. Media controls and desktop notifications use the package's desktop identity, including the different names used by Nix and Flatpak.
 
+### Servers behind an auth gate can pair with a local address
+
+**By [@enncoded](https://github.com/enncoded), PR [#1817](https://github.com/Psysonic/psysonic/pull/1817)**
+
+* Adding a server whose public address sits behind a header-auth gate (Pangolin, Cloudflare Access) failed with "Could not reach <address>" as soon as a second address was filled in, even with a correct gate header. The same-server check pinged the gated address from the WebView, whose preflight carries no token, so the gate refused it. Those two addresses can be paired again.
+
 ### Reissues tagged with the original year stay separate albums
 
 **By [@Psychotoxical](https://github.com/Psychotoxical), PR [#1820](https://github.com/Psysonic/psysonic/pull/1820)**
@@ -122,6 +128,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **By [@Psychotoxical](https://github.com/Psychotoxical), reported by zunoz on Discord, PR [#1839](https://github.com/Psysonic/psysonic/pull/1839)**
 
 * The PsyLab debug window (Ctrl+Shift+D) kept a fixed size, so on a large screen it was a small box with a cramped scroll area. It now takes most of the app window, up to 1280 × 1000 px, and still fits small windows with Reset all and Close in view.
+
+### Security updates for the zip library and a network dependency
+
+**By [@Psychotoxical](https://github.com/Psychotoxical), PR [#1845](https://github.com/Psysonic/psysonic/pull/1845)**
+
+* Updated the zip library used for theme imports and backups to pick up upstream fixes for crafted archives, and updated a redirect-handling dependency with a fix for forwarding credentials on redirects. Backups and theme imports work as before.
+
+### Seekbar no longer flashes while nothing plays
+
+**By [@Psychotoxical](https://github.com/Psychotoxical), reported by zunoz on Discord, PR [#1847](https://github.com/Psysonic/psysonic/pull/1847)**
+
+* After a queue had played to its end, the seekbar could light up completely for a second or two every few seconds while nothing was playing, and the last track was reloaded each time. A queue that finished now simply starts at the beginning of its last track.
+
+### Album and artist pages keep their place during a library scan
+
+**By [@Psychotoxical](https://github.com/Psychotoxical), reported by Svenni on Discord, PR [#1848](https://github.com/Psysonic/psysonic/pull/1848)**
+
+* When a background sync picked up changes after a server scan, the Albums and Artists pages emptied and reloaded, which sent you back to the top. The list now stays where it is and updates in place.
+
+### Pausing after a gapless transition keeps the position
+
+**By [@Psychotoxical](https://github.com/Psychotoxical), reported by VirtualWolf on Discord, PR [#1849](https://github.com/Psysonic/psysonic/pull/1849)**
+
+* After one track had flowed into the next with gapless playback, pausing made the mini player's progress bar jump, often to the very end of the track, until playback resumed. It now stays where the music stopped.
 
 ## Changed
 
