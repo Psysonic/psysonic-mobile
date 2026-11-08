@@ -230,7 +230,13 @@ export function QueueList({
     return (
       <div
         data-timeline-local-idx={localIndex}
-        {...(isHistory ? { 'data-timeline-kind': 'history' } : {})}
+        {...(isHistory
+          ? {
+            'data-timeline-kind': 'history',
+            'data-history-server': base?.serverId ?? track.serverId ?? '',
+            'data-history-track': track.id,
+          }
+          : {})}
         {...(absIdx != null ? { 'data-queue-idx': absIdx } : {})}
         className={`queue-item${showCovers ? ' queue-item--with-cover' : ''} ${isPlaying ? 'active' : ''} ${contextMenu.isOpen && contextMenu.type === (isHistory || absIdx == null ? 'song' : 'queue-item') && (isHistory || absIdx == null ? contextMenu.item === track : contextMenu.queueIndex === absIdx) ? 'context-active' : ''}${!isHistory && base && selection.isSelected(base) ? ' bulk-selected' : ''}`}
         onClick={(e) => {

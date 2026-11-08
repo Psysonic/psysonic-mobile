@@ -1,6 +1,7 @@
 export const home = {
   hero: 'Kiemelt',
   starred: 'Személyes kedvencek',
+  starredEmptyHint: 'A kedvencként megjelölt albumok itt jelennek meg.',
   mostPlayed: 'Legtöbbet játszott',
   recentlyPlayed: 'Nemrég játszott',
   losslessAlbums: 'Veszteségmentes albumok',

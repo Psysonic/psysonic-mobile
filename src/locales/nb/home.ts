@@ -1,6 +1,7 @@
 export const home = {
   hero: 'Utvalgt',
   starred: 'Personlige favoritter',
+  starredEmptyHint: 'Album du merker som favoritter, vises her.',
   mostPlayed: 'Mest spilt',
   recentlyPlayed: 'Nylig spilt',
   losslessAlbums: 'Lossless-album',

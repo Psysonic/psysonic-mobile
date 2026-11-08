@@ -1,6 +1,7 @@
 export const home = {
   hero: 'Uitgelicht',
   starred: 'Persoonlijke favorieten',
+  starredEmptyHint: 'Albums die je als favoriet markeert, verschijnen hier.',
   mostPlayed: 'Meest gespeeld',
   recentlyPlayed: 'Recent afgespeeld',
   losslessAlbums: 'Lossless-albums',

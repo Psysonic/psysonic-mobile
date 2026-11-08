@@ -1,14 +1,18 @@
 /**
  * Geometry of the touch queue's ring menu (hold a row, slide towards an action,
- * let go). The ring is split into five equal pieces, clockwise from the top.
+ * let go). The ring is split into equal pieces, clockwise from the top.
  * The pick follows the finger's movement since the hold, like a stick: where the
  * ring sits on screen does not matter, so it can be pushed away from an edge.
  */
 
-export type QueueRingAction = 'next' | 'like' | 'info' | 'radio' | 'remove';
+export type QueueRingAction = 'next' | 'like' | 'info' | 'radio' | 'remove' | 'queue' | 'artist' | 'play' | 'select';
 
 /** Clockwise from the top. */
 export const QUEUE_RING_ACTIONS: readonly QueueRingAction[] = ['next', 'like', 'info', 'radio', 'remove'];
+/** A track that is not a row of the queue (played before, a search result): nothing to remove. */
+export const TRACK_RING_ACTIONS: readonly QueueRingAction[] = ['next', 'like', 'info', 'radio'];
+export const ALBUM_RING_ACTIONS: readonly QueueRingAction[] = ['next', 'like', 'queue', 'artist'];
+export const PLAYLIST_RING_ACTIONS: readonly QueueRingAction[] = ['play', 'next', 'queue'];
 
 /** `menu` = let go in the middle (full context menu); `null` = let go outside (close). */
 export type QueueRingPick = QueueRingAction | 'menu' | null;
@@ -22,15 +26,20 @@ const OUTSIDE_PX = RING_OUTER_PX + 48;
 /** Gap to the screen edge the ring keeps when it is pushed inwards. */
 const EDGE_GAP_PX = 8;
 
-const SLICE_DEG = 360 / QUEUE_RING_ACTIONS.length;
+const sliceDeg = (count: number) => 360 / count;
 
-export function queueRingPick(dx: number, dy: number): QueueRingPick {
+export function queueRingPick(
+  dx: number,
+  dy: number,
+  actions: readonly QueueRingAction[] = QUEUE_RING_ACTIONS,
+): QueueRingPick {
   const distance = Math.hypot(dx, dy);
   if (distance < CENTER_DEADZONE_PX) return 'menu';
   if (distance > OUTSIDE_PX) return null;
   // Clockwise from the top; the first slice is centred on the top.
-  const deg = (Math.atan2(dx, -dy) * 180 / Math.PI + 360 + SLICE_DEG / 2) % 360;
-  return QUEUE_RING_ACTIONS[Math.floor(deg / SLICE_DEG)] ?? null;
+  const slice = sliceDeg(actions.length);
+  const deg = (Math.atan2(dx, -dy) * 180 / Math.PI + 360 + slice / 2) % 360;
+  return actions[Math.floor(deg / slice)] ?? null;
 }
 
 /** Ring centre for a hold at (x, y): the finger, pushed in so the whole ring is on screen. */
@@ -53,9 +62,10 @@ function pointAt(cx: number, cy: number, radius: number, deg: number): string {
 }
 
 /** SVG path of slice `index` around (cx, cy). */
-export function queueRingSlicePath(index: number, cx: number, cy: number): string {
-  const start = index * SLICE_DEG - SLICE_DEG / 2;
-  const end = start + SLICE_DEG;
+export function queueRingSlicePath(index: number, cx: number, cy: number, count = QUEUE_RING_ACTIONS.length): string {
+  const slice = sliceDeg(count);
+  const start = index * slice - slice / 2;
+  const end = start + slice;
   return [
     `M ${pointAt(cx, cy, RING_OUTER_PX, start)}`,
     `A ${RING_OUTER_PX} ${RING_OUTER_PX} 0 0 1 ${pointAt(cx, cy, RING_OUTER_PX, end)}`,
@@ -66,8 +76,13 @@ export function queueRingSlicePath(index: number, cx: number, cy: number): strin
 }
 
 /** Where slice `index`'s icon sits (middle of the slice). */
-export function queueRingIconPoint(index: number, cx: number, cy: number): { x: number; y: number } {
-  const rad = index * SLICE_DEG * Math.PI / 180;
+export function queueRingIconPoint(
+  index: number,
+  cx: number,
+  cy: number,
+  count = QUEUE_RING_ACTIONS.length,
+): { x: number; y: number } {
+  const rad = index * sliceDeg(count) * Math.PI / 180;
   const radius = (RING_OUTER_PX + RING_INNER_PX) / 2;
   return { x: cx + radius * Math.sin(rad), y: cy - radius * Math.cos(rad) };
 }

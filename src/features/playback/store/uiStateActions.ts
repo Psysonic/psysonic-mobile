@@ -1,3 +1,4 @@
+import { interceptContextMenu } from './contextMenuInterceptor';
 import {
   persistQueueVisibility,
 } from '@/features/playback/store/queueVisibilityStorage';
@@ -62,6 +63,7 @@ export function createUiStateActions(set: SetState): Pick<
       })),
 
     openContextMenu: (x, y, item, type, queueIndex, playlistId, playlistSongIndex, shareKindOverride, pinToPlaybackServer, playlistSongRemove, timelineFromHereRefs, placeAbove, nowPlayingMenu) => {
+      if (interceptContextMenu([x, y, item, type, queueIndex, playlistId, playlistSongIndex, shareKindOverride, pinToPlaybackServer, playlistSongRemove, timelineFromHereRefs, placeAbove, nowPlayingMenu])) return;
       const pin = pinToPlaybackServer ?? type === 'queue-item';
       const open = () =>
         set({

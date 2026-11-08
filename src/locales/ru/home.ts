@@ -1,6 +1,7 @@
 export const home = {
   hero: 'Подборка',
   starred: 'Личное избранное',
+  starredEmptyHint: 'Здесь появятся альбомы, которые вы добавите в избранное.',
   mostPlayed: 'Популярное',
   recentlyPlayed: 'Недавно проиграно',
   losslessAlbums: 'Lossless-альбомы',

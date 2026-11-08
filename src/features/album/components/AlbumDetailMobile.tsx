@@ -60,16 +60,18 @@ interface TrackRowProps {
   onMore: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
-/** One track: tap plays, long press starts a multi-selection, and while one runs a tap picks the row. */
+/** One track: tap plays, long press opens the ring (its "Select" starts a multi-selection), and while one runs a tap picks the row. */
 function AlbumTouchTrackRow({ song, track, active, isPlaying, showArtist, onPlay, onMore }: TrackRowProps) {
   const { t } = useTranslation();
   const selection = useMobileTrackSelection(track);
   return (
     <li
       className={`mobile-track${active ? ' is-active' : ''}${selection.selected ? ' is-selected' : ''}`}
+      data-ring-select=""
       onContextMenu={e => {
         e.preventDefault();
-        selection.start();
+        if (selection.selecting) selection.start();
+        else onMore(e as unknown as React.MouseEvent<HTMLButtonElement>);
       }}
     >
       <button

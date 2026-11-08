@@ -1,6 +1,7 @@
 export const home = {
   hero: 'Προτεινόμενα',
   starred: 'Αγαπημένα',
+  starredEmptyHint: 'Τα άλμπουμ που σημειώνετε ως αγαπημένα εμφανίζονται εδώ.',
   mostPlayed: 'Τα πιο δημοφιλή',
   recentlyPlayed: 'Παίχτηκαν πρόσφατα',
   losslessAlbums: 'Lossless Άλμπουμ',

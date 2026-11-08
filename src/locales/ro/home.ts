@@ -1,6 +1,7 @@
 export const home = {
   hero: 'Promovat',
   starred: 'Evaluate',
+  starredEmptyHint: 'Albumele marcate ca favorite apar aici.',
   mostPlayed: 'Cele mai Redate',
   recentlyPlayed: 'Redate Recent',
   losslessAlbums: 'Albume Lossless',

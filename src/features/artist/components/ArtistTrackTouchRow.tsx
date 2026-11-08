@@ -24,7 +24,7 @@ interface Props {
 /**
  * Artist track row in the touch shell, shared by the Top and All tabs so both
  * read the same: rank, album cover, title over album, duration, "…" menu. A long press
- * starts a multi-selection, during which a tap picks the row.
+ * opens the ring, whose "Select" starts a multi-selection, during which a tap picks the row.
  */
 function ArtistTrackTouchRow({ song, index, albums, isActive, showEq, onPlay, onMore, as: Tag = 'li' }: Props) {
   const { t } = useTranslation();
@@ -33,9 +33,11 @@ function ArtistTrackTouchRow({ song, index, albums, isActive, showEq, onPlay, on
   return (
     <Tag
       className={`mobile-track${isActive ? ' is-active' : ''}${selection.selected ? ' is-selected' : ''}`}
+      data-ring-select=""
       onContextMenu={(e: React.MouseEvent) => {
         e.preventDefault();
-        selection.start();
+        if (selection.selecting) selection.start();
+        else onMore(song, { x: e.clientX, y: e.clientY });
       }}
       // Virtualised rows each sit in their own wrapper, where `:last-child` would drop every border.
       data-artist-track-row={Tag === 'div' ? '' : undefined}

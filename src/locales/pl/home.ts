@@ -1,6 +1,7 @@
 export const home = {
   hero: 'Polecane',
   starred: 'Osobiste ulubione',
+  starredEmptyHint: 'Albumy oznaczone jako ulubione pojawią się tutaj.',
   mostPlayed: 'Najczęściej odtwarzane',
   recentlyPlayed: 'Niedawno odtwarzane',
   losslessAlbums: 'Albumy bezstratne',

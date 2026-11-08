@@ -21,7 +21,7 @@ interface Props {
 /**
  * A song in a touch-shell list (favourites, random mix), as the album and
  * artist track lists read: number, album cover, title over artist, duration,
- * "…" menu. Tapping plays; a long press starts a multi-selection, during which a tap picks the row.
+ * "…" menu. Tapping plays; a long press opens the ring, whose "Select" starts a multi-selection, during which a tap picks the row.
  */
 function MobileSongRow({ song, index, isActive, showEq, onPlay, onMore }: Props) {
   const { t } = useTranslation();
@@ -31,9 +31,11 @@ function MobileSongRow({ song, index, isActive, showEq, onPlay, onMore }: Props)
     <div
       className={`mobile-track${isActive ? ' is-active' : ''}${selection.selected ? ' is-selected' : ''}`}
       data-virtual-track-row=""
+      data-ring-select=""
       onContextMenu={e => {
         e.preventDefault();
-        selection.start();
+        if (selection.selecting) selection.start();
+        else onMore(song, { x: e.clientX, y: e.clientY });
       }}
     >
       <button
