@@ -23,8 +23,8 @@ interface Props {
 /**
  * Playlist track row in the touch shell: tap plays, "…" opens the same menu as
  * the desktop right click (incl. remove from playlist). Cover only when the
- * user's track-list covers setting is on. A long press starts a multi-selection,
- * during which a tap picks the row.
+ * user's track-list covers setting is on. A long press opens the ring, whose
+ * "Select" starts a multi-selection, during which a tap picks the row.
  */
 function PlaylistTouchRow({ song, index, realIdx, isActive, showEq, cb, reordering = false }: Props) {
   const { t } = useTranslation();
@@ -33,9 +33,12 @@ function PlaylistTouchRow({ song, index, realIdx, isActive, showEq, cb, reorderi
     <div
       className={`mobile-track${isActive ? ' is-active' : ''}${selection.selected ? ' is-selected' : ''}`}
       data-playlist-touch-row={index}
+      data-ring-select=""
       onContextMenu={e => {
         e.preventDefault();
-        if (!reordering) selection.start();
+        if (reordering) return;
+        if (selection.selecting) selection.start();
+        else cb.context(song, realIdx, e, { x: e.clientX, y: e.clientY });
       }}
     >
       <button

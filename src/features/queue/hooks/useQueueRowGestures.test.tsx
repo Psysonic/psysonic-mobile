@@ -4,12 +4,23 @@ import { useRef } from 'react';
 import { dispatchTouch } from '@/test/helpers/touch';
 import { usePlayerStore } from '@/features/playback/store/playerStore';
 import { resetAllStores } from '@/test/helpers/storeReset';
-import { RING_HOLD_MS, useQueueRowGestures } from '@/features/queue/hooks/useQueueRowGestures';
+import {
+  RING_EXIT_MS,
+  RING_HOLD_MS,
+  SWIPE_OUT_MS,
+  useQueueRowGestures,
+  type QueueRowTarget,
+} from '@/features/queue/hooks/useQueueRowGestures';
 import type { QueueRingPick } from '@/features/queue/utils/queueRingGeometry';
 
-function Harness({ onPick }: { onPick: (pick: QueueRingPick, idx: number) => void }) {
+const targetId = (target: QueueRowTarget) => {
+  if (target.kind === 'queue') return target.idx;
+  return target.kind === 'track' ? target.track.id : '';
+};
+
+function Harness({ onPick }: { onPick: (pick: QueueRingPick, id: number | string) => void }) {
   const listRef = useRef<HTMLDivElement>(null);
-  const ring = useQueueRowGestures({ listRef, enabled: true, onPick: (p, i) => onPick(p, i) });
+  const ring = useQueueRowGestures({ listRef, enabled: true, onPick: (p, target) => onPick(p, targetId(target)) });
   return (
     <>
       <div ref={listRef}>
@@ -19,8 +30,13 @@ function Harness({ onPick }: { onPick: (pick: QueueRingPick, idx: number) => voi
             <button type="button">grip {i}</button>
           </div></div>
         ))}
+        <div><div data-timeline-kind="history" data-history-server="srv" data-history-track="h1" data-testid="history">
+          Played before
+        </div></div>
       </div>
-      <output data-testid="ring">{ring ? `${ring.idx}:${ring.pick}` : 'none'}</output>
+      <output data-testid="ring">
+        {ring ? `${targetId(ring.target)}:${ring.pick}${ring.leaving ? ':leaving' : ''}:${ring.actions.length}` : 'none'}
+      </output>
     </>
   );
 }
@@ -42,16 +58,60 @@ describe('useQueueRowGestures (ring menu)', () => {
     render(<Harness onPick={onPick} />);
     act(() => { dispatchTouch(row(2), 'touchstart', at(200, 400)); });
     hold();
-    expect(screen.getByTestId('ring')).toHaveTextContent('2:menu');
+    expect(screen.getByTestId('ring')).toHaveTextContent('2:menu:5');
 
     let moveEvent: Event | undefined;
     act(() => { moveEvent = dispatchTouch(row(2), 'touchmove', at(200, 320)); });
     expect(moveEvent?.defaultPrevented).toBe(true);
-    expect(screen.getByTestId('ring')).toHaveTextContent('2:next');
+    expect(screen.getByTestId('ring')).toHaveTextContent('2:next:5');
 
     act(() => { dispatchTouch(row(2), 'touchend', at(200, 320)); });
     expect(onPick).toHaveBeenCalledWith('next', 2);
+  });
+
+  it('the picked piece lingers after letting go, then the ring is gone; the action runs at once', () => {
+    const onPick = vi.fn();
+    render(<Harness onPick={onPick} />);
+    act(() => { dispatchTouch(row(2), 'touchstart', at(200, 400)); });
+    hold();
+    act(() => { dispatchTouch(row(2), 'touchmove', at(200, 320)); });
+    act(() => { dispatchTouch(row(2), 'touchend', at(200, 320)); });
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('ring')).toHaveTextContent('2:next:leaving');
+    act(() => { vi.advanceTimersByTime(RING_EXIT_MS); });
     expect(screen.getByTestId('ring')).toHaveTextContent('none');
+  });
+
+  it('the middle (full menu) leaves at once: the menu takes over', () => {
+    render(<Harness onPick={vi.fn()} />);
+    act(() => { dispatchTouch(row(2), 'touchstart', at(200, 400)); });
+    hold();
+    act(() => { dispatchTouch(row(2), 'touchend', at(200, 400)); });
+    expect(screen.getByTestId('ring')).toHaveTextContent('none');
+  });
+
+  it('a new hold during the linger is not closed by the old timer', () => {
+    render(<Harness onPick={vi.fn()} />);
+    act(() => { dispatchTouch(row(2), 'touchstart', at(200, 400)); });
+    hold();
+    act(() => { dispatchTouch(row(2), 'touchmove', at(200, 320)); });
+    act(() => { dispatchTouch(row(2), 'touchend', at(200, 320)); });
+    act(() => { dispatchTouch(row(3), 'touchstart', at(200, 400)); });
+    hold();
+    act(() => { vi.advanceTimersByTime(RING_EXIT_MS); });
+    expect(screen.getByTestId('ring')).toHaveTextContent('3:menu:5');
+  });
+
+  it('a track played before gets the ring without Remove', () => {
+    const onPick = vi.fn();
+    render(<Harness onPick={onPick} />);
+    const history = screen.getByTestId('history');
+    act(() => { dispatchTouch(history, 'touchstart', at(200, 400)); });
+    hold();
+    expect(screen.getByTestId('ring')).toHaveTextContent('h1:menu:4');
+    act(() => { dispatchTouch(history, 'touchmove', at(200, 320)); });
+    act(() => { dispatchTouch(history, 'touchend', at(200, 320)); });
+    expect(onPick).toHaveBeenCalledWith('next', 'h1');
   });
 
   it('letting go in the middle asks for the full menu, far outside for nothing', () => {
@@ -103,8 +163,14 @@ describe('useQueueRowGestures (ring menu)', () => {
       act(() => { dispatchTouch(row(2), 'touchmove', at(150, 404)); });
       expect(track.hasAttribute('data-swipe-armed')).toBe(true);
       act(() => { dispatchTouch(row(2), 'touchend', at(150, 404)); });
+      // The row runs all the way across first.
+      expect(onPick).not.toHaveBeenCalled();
+      expect(row(2).style.getPropertyValue('--swipe-dx')).toBe('-390px');
+      expect(row(2).classList.contains('queue-item--swipe-out')).toBe(true);
+      act(() => { vi.advanceTimersByTime(SWIPE_OUT_MS); });
       expect(onPick).toHaveBeenCalledWith('remove', 2);
       expect(row(2).classList.contains('queue-item--swiping')).toBe(false);
+      expect(row(2).classList.contains('queue-item--swipe-out')).toBe(false);
       expect(track.dataset.swipe).toBeUndefined();
     });
 
@@ -115,7 +181,26 @@ describe('useQueueRowGestures (ring menu)', () => {
       act(() => { dispatchTouch(row(3), 'touchmove', at(100, 400)); });
       act(() => { dispatchTouch(row(3), 'touchmove', at(200, 400)); });
       act(() => { dispatchTouch(row(3), 'touchend', at(200, 400)); });
+      act(() => { vi.advanceTimersByTime(SWIPE_OUT_MS); });
       expect(onPick).toHaveBeenCalledWith('next', 3);
+    });
+
+    it('a track played before swipes right to play next, never left', () => {
+      const onPick = vi.fn();
+      render(<Harness onPick={onPick} />);
+      const history = screen.getByTestId('history');
+      act(() => { dispatchTouch(history, 'touchstart', at(300, 400)); });
+      act(() => { dispatchTouch(history, 'touchmove', at(150, 400)); });
+      expect(history.classList.contains('queue-item--swiping')).toBe(false);
+      act(() => { dispatchTouch(history, 'touchend', at(150, 400)); });
+      expect(onPick).not.toHaveBeenCalled();
+
+      act(() => { dispatchTouch(history, 'touchstart', at(50, 400)); });
+      act(() => { dispatchTouch(history, 'touchmove', at(100, 400)); });
+      act(() => { dispatchTouch(history, 'touchmove', at(250, 400)); });
+      act(() => { dispatchTouch(history, 'touchend', at(250, 400)); });
+      act(() => { vi.advanceTimersByTime(SWIPE_OUT_MS); });
+      expect(onPick).toHaveBeenCalledWith('next', 'h1');
     });
 
     it('a short swipe snaps back and does nothing; a swipe never turns into the ring', () => {

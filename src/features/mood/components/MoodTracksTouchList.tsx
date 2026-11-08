@@ -48,9 +48,11 @@ function MoodTrackTouchRow({ song, index, isActive, showEq, onPlay, onMore }: Ro
   return (
     <li
       className={`mobile-track${isActive ? ' is-active' : ''}${selection.selected ? ' is-selected' : ''}`}
+      data-ring-select=""
       onContextMenu={(e: React.MouseEvent) => {
         e.preventDefault();
-        selection.start();
+        if (selection.selecting) selection.start();
+        else onMore(song, { x: e.clientX, y: e.clientY });
       }}
     >
       <button

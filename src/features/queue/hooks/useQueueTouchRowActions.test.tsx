@@ -33,7 +33,7 @@ describe('useQueueTouchRowActions', () => {
 
   it('"play next" moves the row right behind the playing track, with undo', () => {
     const { result } = setup();
-    act(() => result.current.run('next', 3, { x: 0, y: 0 }));
+    act(() => result.current.run('next', { kind: 'queue', idx: 3 }, { x: 0, y: 0 }));
     expect(order()).toEqual(ids(0, 3, 1, 2));
     expect(result.current.notice?.undoable).toBe(true);
 
@@ -44,7 +44,7 @@ describe('useQueueTouchRowActions', () => {
 
   it('"remove" takes the row out and undo brings it back in place', () => {
     const { result } = setup();
-    act(() => result.current.run('remove', 2, { x: 0, y: 0 }));
+    act(() => result.current.run('remove', { kind: 'queue', idx: 2 }, { x: 0, y: 0 }));
     expect(order()).toEqual(ids(0, 1, 3));
     expect(result.current.notice?.undoable).toBe(true);
 
@@ -54,15 +54,36 @@ describe('useQueueTouchRowActions', () => {
 
   it('never touches the playing row, and a pick of nothing does nothing', () => {
     const { result } = setup();
-    act(() => result.current.run('remove', 0, { x: 0, y: 0 }));
-    act(() => result.current.run(null, 2, { x: 0, y: 0 }));
+    act(() => result.current.run('remove', { kind: 'queue', idx: 0 }, { x: 0, y: 0 }));
+    act(() => result.current.run(null, { kind: 'queue', idx: 2 }, { x: 0, y: 0 }));
     expect(order()).toEqual(ids(0, 1, 2, 3));
     expect(result.current.notice).toBeNull();
   });
 
+  it('a track outside the queue plays next as a new row, with undo', () => {
+    const { result } = setup();
+    const other = makeTracks(5)[4];
+    const row = document.createElement('div');
+    act(() => result.current.run('next', { kind: 'track', track: other, row }, { x: 0, y: 0 }));
+    expect(order()).toEqual([tracks[0].id, other.id, tracks[1].id, tracks[2].id, tracks[3].id]);
+    expect(result.current.notice?.undoable).toBe(true);
+
+    act(() => result.current.undo());
+    expect(order()).toEqual(ids(0, 1, 2, 3));
+  });
+
+  it('the full menu of a track outside the queue comes from its own row', () => {
+    const { result } = setup();
+    const row = document.createElement('div');
+    const onMenu = vi.fn();
+    row.addEventListener('contextmenu', onMenu);
+    act(() => result.current.run('menu', { kind: 'track', track: tracks[0], row }, { x: 10, y: 20 }));
+    expect(onMenu).toHaveBeenCalledTimes(1);
+  });
+
   it('the row already next stays put and offers no undo', () => {
     const { result } = setup();
-    act(() => result.current.run('next', 1, { x: 0, y: 0 }));
+    act(() => result.current.run('next', { kind: 'queue', idx: 1 }, { x: 0, y: 0 }));
     expect(order()).toEqual(ids(0, 1, 2, 3));
     expect(result.current.notice?.undoable).toBe(false);
   });

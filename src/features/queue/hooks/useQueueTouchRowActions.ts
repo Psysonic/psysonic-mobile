@@ -4,7 +4,9 @@ import { usePlayerStore, resolveQueueTrack, queueSongStar } from '@/features/pla
 import { startRadio } from '@/features/contextMenu';
 import { ownedOverrideValue } from '@/lib/util/ownedEntityKey';
 import { prepareTransientUiOpen } from '@/lib/dom/transientUi';
+import type { Track } from '@/lib/media/trackTypes';
 import type { QueueRingPick } from '@/features/queue/utils/queueRingGeometry';
+import type { QueueRowTarget } from '@/features/queue/hooks/useQueueRowGestures';
 
 /** How long the "removed / plays next" bar with its Undo button stays. */
 export const QUEUE_UNDO_NOTICE_MS = 5000;
@@ -39,8 +41,43 @@ export function useQueueTouchRowActions(suppressNextAutoScrollRef: MutableRefObj
     usePlayerStore.getState().undoLastQueueEdit();
   }, [suppressNextAutoScrollRef]);
 
-  const run = useCallback((pick: QueueRingPick, idx: number, at: { x: number; y: number }) => {
+  /** A track outside the queue (played before, a search result). */
+  const runOnTrack = useCallback((pick: QueueRingPick, track: Track, row: HTMLElement, at: { x: number; y: number }) => {
+    const s = usePlayerStore.getState();
+    switch (pick) {
+      case 'menu':
+        // The row knows its own menu.
+        row.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true, cancelable: true, clientX: at.x, clientY: at.y, button: 2,
+        }));
+        return;
+      case 'next':
+        suppressNextAutoScrollRef.current = true;
+        s.playNext([track]);
+        showNotice({ text: t('queue.touchPlaysNext', { title: track.title }), undoable: !!s.currentTrack });
+        return;
+      case 'like': {
+        const starred = ownedOverrideValue(s.starredOverrides, track) ?? !!track.starred;
+        queueSongStar(track.id, !starred, track.serverId, { scopedOverride: true });
+        return;
+      }
+      case 'radio':
+        void startRadio(track.artistId ?? track.artist, track.artist, s.playTrack, track);
+        return;
+      case 'info':
+        s.openSongInfo(track.id, track.serverId);
+        return;
+    }
+  }, [showNotice, suppressNextAutoScrollRef, t]);
+
+  const run = useCallback((pick: QueueRingPick, target: QueueRowTarget, at: { x: number; y: number }) => {
     if (!pick) return;
+    if (target.kind === 'track') {
+      runOnTrack(pick, target.track, target.row, at);
+      return;
+    }
+    if (target.kind !== 'queue') return;
+    const { idx } = target;
     const s = usePlayerStore.getState();
     const ref = s.queueItems[idx];
     if (!ref || idx === s.queueIndex) return;
@@ -77,7 +114,7 @@ export function useQueueTouchRowActions(suppressNextAutoScrollRef: MutableRefObj
         s.openSongInfo(track.id, track.serverId);
         return;
     }
-  }, [showNotice, suppressNextAutoScrollRef, t]);
+  }, [runOnTrack, showNotice, suppressNextAutoScrollRef, t]);
 
   return { run, notice, undo };
 }

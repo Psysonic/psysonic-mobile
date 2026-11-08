@@ -202,6 +202,10 @@ export default function MobileSearchOverlay({ onClose, initialQuery }: {
     onClose();
   };
   const goCategory = (path: string) => { navigate(path); onClose(); };
+  const openSongMenu = (e: React.MouseEvent, song: SearchResults['songs'][number]) => {
+    e.preventDefault();
+    usePlayerStore.getState().openContextMenu(e.clientX, e.clientY, songToTrack(song), 'song');
+  };
   const enqueueSong = (song: SearchResults['songs'][number]) => {
     commit(query);
     // Touch shell, Orbit session: a tap adds the song to the session (host) or
@@ -467,7 +471,12 @@ export default function MobileSearchOverlay({ onClose, initialQuery }: {
               <div className="mobile-search-section">
                 <div className="mobile-search-section-label">{t('search.songs')}</div>
                 {results!.songs.map(s => (
-                  <button key={ownedEntityKey(s)} className="mobile-search-item" onClick={() => enqueueSong(s)}>
+                  <button
+                    key={ownedEntityKey(s)}
+                    className="mobile-search-item"
+                    onClick={() => enqueueSong(s)}
+                    onContextMenu={IS_MOBILE_SHELL && !orbitActive ? e => openSongMenu(e, s) : undefined}
+                  >
                     {s.albumId && (s.coverArt ?? s.albumId) ? (
                       <MobileSearchSongThumb song={s} />
                     ) : (

@@ -2594,6 +2594,11 @@ html[data-mobile-app] .app-shell {
   background: var(--bg-app);
 }
 
+/* A committed swipe runs the row across before the action happens. */
+.queue-panel--touch .queue-item.queue-item--swipe-out {
+  transition: transform 0.18s ease-out;
+}
+
 .queue-swipe-track::before,
 .queue-swipe-track::after {
   content: '';
@@ -2716,6 +2721,29 @@ html[data-mobile-app] .app-shell {
   font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+/* The finger lifted: the picked piece stays for a moment, the rest is already gone. */
+.queue-ring--leaving {
+  background: transparent;
+  transition: background 0.12s ease-out;
+}
+
+.queue-ring--leaving .queue-ring__slice:not(.is-active),
+.queue-ring--leaving .queue-ring__icon:not(.is-active),
+.queue-ring--leaving .queue-ring__center:not(.is-active) {
+  opacity: 0;
+  transition: opacity 0.1s ease-out;
+}
+
+.queue-ring--leaving .queue-ring__slice.is-active,
+.queue-ring--leaving .queue-ring__icon.is-active,
+.queue-ring--leaving .queue-ring__label {
+  animation: queue-ring-picked-out 0.2s ease-in 0.3s forwards;
+}
+
+@keyframes queue-ring-picked-out {
+  to { opacity: 0; }
 }
 
 /* What a quick action did, with Undo (`QueueUndoBar`). */
@@ -6224,6 +6252,19 @@ html[data-mobile-reordering] .playlist-reorder-hint {
 .mobile-folder-browser__filter {
   width: 100%;
   margin: 12px 0 8px;
+}
+
+.mobile-favorites__filter {
+  position: relative;
+}
+
+.mobile-favorites__filter-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
 }
 
 .mobile-folder-browser__status {
