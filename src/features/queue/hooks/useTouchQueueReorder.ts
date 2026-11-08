@@ -9,6 +9,8 @@ interface Args {
   enabled: boolean;
   /** Same contract as the desktop drop: indices to move and the gap to insert them at. */
   moveQueueItems: (indices: readonly number[], gapIndex: number) => void;
+  /** The virtual index of the row in the finger, `null` when none is held. */
+  onHeldRowChange?: (virtualIndex: number | null) => void;
 }
 
 /**
@@ -18,7 +20,9 @@ interface Args {
  * Timeline history rows stay where they are, and the row's other buttons
  * (favorite) keep their tap.
  */
-export function useTouchQueueReorder({ listRef, enabled, moveQueueItems }: Args): TouchDropTarget | null {
+export function useTouchQueueReorder({
+  listRef, enabled, moveQueueItems, onHeldRowChange,
+}: Args): TouchDropTarget | null {
   return useTouchListReorder({
     listRef,
     enabled,
@@ -28,6 +32,11 @@ export function useTouchQueueReorder({ listRef, enabled, moveQueueItems }: Args)
     handleSelector: '.queue-item-grip',
     liftDelayMs: 0,
     liftedClass: 'queue-item--lifted',
+    // The row's virtualised wrapper carries the index the virtualizer knows it by.
+    onHeldChange: row => {
+      const index = Number(row?.parentElement?.getAttribute('data-index') ?? NaN);
+      onHeldRowChange?.(Number.isInteger(index) ? index : null);
+    },
     onDrop: (from, target) => moveQueueItems([from], target.before ? target.idx : target.idx + 1),
   });
 }

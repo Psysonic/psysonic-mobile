@@ -99,6 +99,50 @@ describe('useTouchListReorder', () => {
     expect(row(1).style.getPropertyValue('--lift-dy')).toBe('80px');
   });
 
+  describe('the held row is virtualised out of the list', () => {
+    /** The browser keeps sending the touch to the removed element, which no longer bubbles. */
+    function liftAndDetach(onDrop = vi.fn()) {
+      render(<Harness onDrop={onDrop} scroller={scroller} />);
+      act(() => { dispatchTouch(station(3), 'touchstart', at(200)); });
+      hold();
+      const heldButton = station(3);
+      const heldRow = row(3);
+      act(() => { dispatchTouch(heldButton, 'touchmove', at(150)); });
+      act(() => { dispatchTouch(heldButton, 'touchmove', at(10)); });
+      expect(screen.getByTestId('target')).toHaveTextContent('0:before');
+      act(() => { heldRow.remove(); });
+      return { heldButton, onDrop };
+    }
+
+    it('the finger keeps steering the drop, and lifting it drops the row', () => {
+      const { heldButton, onDrop } = liftAndDetach();
+      act(() => { dispatchTouch(heldButton, 'touchmove', at(70)); });
+      expect(screen.getByTestId('target')).toHaveTextContent('1:before');
+      act(() => { dispatchTouch(heldButton, 'touchend', at(70)); });
+      expect(onDrop).toHaveBeenCalledTimes(1);
+      expect(onDrop).toHaveBeenCalledWith(3, expect.objectContaining({ idx: 1, before: true }), expect.anything());
+      expect(screen.getByTestId('target')).toHaveTextContent('none');
+    });
+
+    it('a cancelled touch ends the drag without a drop', () => {
+      const { heldButton, onDrop } = liftAndDetach();
+      act(() => { dispatchTouch(heldButton, 'touchcancel', at(10)); });
+      expect(onDrop).not.toHaveBeenCalled();
+      expect(screen.getByTestId('target')).toHaveTextContent('none');
+    });
+  });
+
+  it('a row still in the list drops once, not once per listener', () => {
+    const onDrop = vi.fn();
+    render(<Harness onDrop={onDrop} scroller={scroller} />);
+    act(() => { dispatchTouch(station(3), 'touchstart', at(200)); });
+    hold();
+    act(() => { dispatchTouch(station(3), 'touchmove', at(150)); });
+    act(() => { dispatchTouch(station(3), 'touchmove', at(10)); });
+    act(() => { dispatchTouch(station(3), 'touchend', at(10)); });
+    expect(onDrop).toHaveBeenCalledTimes(1);
+  });
+
   it('touches on the ignored icon buttons keep their tap', () => {
     render(<Harness onDrop={vi.fn()} scroller={scroller} />);
     act(() => { dispatchTouch(screen.getByText('fav 2'), 'touchstart', at(150)); });

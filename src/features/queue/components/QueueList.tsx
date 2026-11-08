@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useVirtualizer, type Range } from '@tanstack/react-virtual';
 import { GripVertical, Heart, Play } from 'lucide-react';
 import type { TFunction } from 'i18next';
 import OverlayScrollArea from '@/ui/OverlayScrollArea';
@@ -32,6 +32,7 @@ import { queueSongStar } from '@/features/playback';
 import { ownedOverrideValue } from '@/lib/util/ownedEntityKey';
 import { useQueueSelection } from '@/features/queue/hooks/useQueueSelection';
 import { buildQueueReorderData } from '@/features/queue/utils/queueReorderPayload';
+import { queueRangeWithHeldRow } from '@/features/queue/utils/queueHeldRowRange';
 import { ExplicitTitle } from '@/ui/ExplicitBadge';
 import ExplicitCoverVeil from '@/ui/ExplicitCoverVeil';
 import { isExplicit } from '@/lib/media/explicitStatus';
@@ -65,6 +66,8 @@ interface Props {
   luckyRolling: boolean;
   /** Touch sheet: each movable row gets a grip to reorder it. */
   touch?: boolean;
+  /** Touch: virtual index of the row held by its grip; it stays rendered while it is carried. */
+  heldRowIndex?: number | null;
   t: TFunction;
 }
 
@@ -74,7 +77,7 @@ export function QueueList({
   queue, timelineRows, canonicalQueue, queueIndex, displayBaseIndex, queueDisplayMode, emptyLabel,
   contextMenu, playTrack, activeTab, queueListRef,
   suppressNextAutoScrollRef, isQueueDrag, psyDragFromIdxRef, externalDropTarget,
-  startDrag, orbitAttributionLabel, luckyRolling, touch = false, t,
+  startDrag, orbitAttributionLabel, luckyRolling, touch = false, heldRowIndex = null, t,
 }: Props) {
   useSyncExternalStore(subscribeQueueResolver, getQueueResolverVersion);
   const showCovers = useTrackListCoverArtEnabled('queue');
@@ -110,12 +113,18 @@ export function QueueList({
   // Whether the running drag carries the whole selection (read while rendering the drag).
   const blockDragRef = useRef(false);
 
+  const rangeExtractor = useCallback(
+    (range: Range) => queueRangeWithHeldRow(range, heldRowIndex),
+    [heldRowIndex],
+  );
+
   // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => queueListRef.current,
     estimateSize: () => (showCovers ? 56 : 52),
     overscan: 10,
+    rangeExtractor,
     getItemKey: i => {
       if (usingTimeline) return timelineRows[i]!.key;
       return `${queue[i].trackId}:${i}`;
@@ -130,8 +139,10 @@ export function QueueList({
   // the queue independently would otherwise leave rows stuck on the '…'
   // placeholder (cache miss / evicted from the bounded LRU). Drive resolution off
   // the virtualizer's visible range so any scrolled-to row fetches on demand.
-  const firstVisible = virtualItems.length > 0 ? virtualItems[0]!.index : 0;
-  const lastVisible = virtualItems.length > 0 ? virtualItems[virtualItems.length - 1]!.index : 0;
+  // A held row can sit far outside the window; it must not stretch the range to resolve.
+  const resolveItems = heldRowIndex === null ? virtualItems : virtualItems.filter(vi => vi.index !== heldRowIndex);
+  const firstVisible = resolveItems.length > 0 ? resolveItems[0]!.index : 0;
+  const lastVisible = resolveItems.length > 0 ? resolveItems[resolveItems.length - 1]!.index : 0;
   useEffect(() => {
     if (rowCount === 0) return;
     const refs = collectQueueResolveRefs({ usingTimeline, timelineRows, queue, firstVisible, lastVisible });

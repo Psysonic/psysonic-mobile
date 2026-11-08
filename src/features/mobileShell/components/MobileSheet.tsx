@@ -27,6 +27,19 @@ function reducedMotion(): boolean {
 }
 
 /**
+ * Whether the touched content is scrolled away from its top. Walks up from the touch to the
+ * sheet's body, because the scroller can be nested (the queue's own list inside a body that
+ * does not scroll).
+ */
+function contentIsScrolled(target: EventTarget | null, body: HTMLElement): boolean {
+  for (let el = target instanceof Element ? target : null; el; el = el.parentElement) {
+    if (el.scrollTop > 0) return true;
+    if (el === body) break;
+  }
+  return false;
+}
+
+/**
  * iOS-style bottom sheet: dimmed backdrop, grabber, header with a close
  * button. Closes on backdrop tap, Escape, or dragging it down — by the header,
  * or by its content once that is scrolled to the top. The sheet follows the
@@ -117,7 +130,7 @@ export default function MobileSheet({ title, hideTitle, onClose, className, chil
       }
       const y = e.touches[0].clientY;
       if (!dragging) {
-        if (y - startY <= 0 || body.scrollTop > 0) {
+        if (y - startY <= 0 || contentIsScrolled(e.target, body)) {
           if (y - startY < 0) startY = null;
           return;
         }
