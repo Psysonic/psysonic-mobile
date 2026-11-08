@@ -103,6 +103,61 @@ describe('MobileSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  describe('content with its own scroller (the queue list)', () => {
+    const touch = (y: number) => ({ touches: [{ clientY: y }] });
+    const sheetTransform = () => (document.querySelector('.mobile-sheet') as HTMLElement).style.transform;
+
+    function setupScroller() {
+      const { onClose } = setup();
+      const body = document.querySelector('.mobile-sheet__body') as HTMLElement;
+      const scroller = document.createElement('div');
+      const row = document.createElement('div');
+      scroller.appendChild(row);
+      body.appendChild(scroller);
+      return { onClose, scroller, row };
+    }
+
+    it('pulling down scrolls the list back while it is scrolled, the sheet stays', () => {
+      const { onClose, scroller, row } = setupScroller();
+      scroller.scrollTop = 300;
+      act(() => {
+        fireEvent.touchStart(row, touch(100));
+        fireEvent.touchMove(row, touch(150));
+        fireEvent.touchMove(row, touch(300));
+        fireEvent.touchEnd(row);
+      });
+      expect(sheetTransform()).toBe('');
+      slideOut();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('takes over once the list reaches the top during the same pull', () => {
+      const { scroller, row } = setupScroller();
+      scroller.scrollTop = 40;
+      act(() => {
+        fireEvent.touchStart(row, touch(100));
+        fireEvent.touchMove(row, touch(140));
+      });
+      expect(sheetTransform()).toBe('');
+      scroller.scrollTop = 0;
+      act(() => {
+        fireEvent.touchMove(row, touch(150));
+        fireEvent.touchMove(row, touch(210));
+      });
+      expect(sheetTransform()).toBe('translateY(60px)');
+    });
+
+    it('a list already at the top still lets the pull drag the sheet', () => {
+      const { row } = setupScroller();
+      act(() => {
+        fireEvent.touchStart(row, touch(100));
+        fireEvent.touchMove(row, touch(150));
+        fireEvent.touchMove(row, touch(210));
+      });
+      expect(sheetTransform()).toBe('translateY(60px)');
+    });
+  });
+
   it('stays put when a gesture inside already owns the finger (row lifted by its grip)', () => {
     const { onClose } = setup();
     const body = document.querySelector('.mobile-sheet__body') as HTMLElement;
