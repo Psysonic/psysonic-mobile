@@ -204,7 +204,13 @@ function QueuePanelHostOrSolo({ touch, onClose, hideOrbitHead, touchPlaybackMode
 
   // Touch: the grip lifts a row to drag it (no mouse drag on a phone); holding
   // the rest of the row opens the ring of quick actions.
-  const touchDropTarget = useTouchQueueReorder({ listRef: queueListRef, enabled: !!touch, moveQueueItems });
+  const [heldRowIndex, setHeldRowIndex] = useState<number | null>(null);
+  const touchDropTarget = useTouchQueueReorder({
+    listRef: queueListRef,
+    enabled: !!touch,
+    moveQueueItems,
+    onHeldRowChange: setHeldRowIndex,
+  });
   const touchRowActions = useQueueTouchRowActions(suppressNextAutoScrollRef);
   const ring = useQueueRowGestures({ listRef: queueListRef, enabled: !!touch, onPick: touchRowActions.run });
 
@@ -466,6 +472,7 @@ function QueuePanelHostOrSolo({ touch, onClose, hideOrbitHead, touchPlaybackMode
         orbitAttributionLabel={orbitAttributionLabel}
         luckyRolling={luckyRolling}
         touch={touch}
+        heldRowIndex={heldRowIndex}
         t={t}
       />
       {touch && ring && <QueueRingMenu ring={ring} />}

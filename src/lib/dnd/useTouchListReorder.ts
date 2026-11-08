@@ -34,6 +34,8 @@ export interface TouchListReorderOptions {
   liftedClass: string;
   /** Element that scrolls under the finger; the list itself when omitted. */
   getScroller?: () => HTMLElement | null;
+  /** A row lifted off (`null` when the hold ends): a virtualised list keeps that row rendered. */
+  onHeldChange?: (row: HTMLElement | null) => void;
   /** The held row (index `fromIdx`, element `fromRow`) was dropped in front of / behind `target`. */
   onDrop: (fromIdx: number, target: TouchDropTarget, fromRow: HTMLElement) => void;
 }
@@ -73,8 +75,9 @@ export function useTouchListReorder(options: TouchListReorderOptions): TouchDrop
     let dropTarget: TouchDropTarget | null = null;
     let frame = 0;
     let lastFrameAt: number | null = null;
+    let stopFollowingTarget: (() => void) | null = null;
 
-    const setDrop = (next: TouchDropTarget | null) => {
+    const setDrop =(next: TouchDropTarget | null) => {
       if (next?.row === dropTarget?.row && next?.before === dropTarget?.before) return;
       dropTarget = next;
       setTarget(next);
@@ -121,6 +124,9 @@ export function useTouchListReorder(options: TouchListReorderOptions): TouchDrop
     };
 
     const reset = () => {
+      stopFollowingTarget?.();
+      stopFollowingTarget = null;
+      if (lifted) latest.current.onHeldChange?.(null);
       if (timer !== undefined) window.clearTimeout(timer);
       timer = undefined;
       cancelAnimationFrame(frame);
@@ -139,6 +145,7 @@ export function useTouchListReorder(options: TouchListReorderOptions): TouchDrop
     const lift = () => {
       if (!press) return;
       lifted = true;
+      latest.current.onHeldChange?.(press.row);
       press.row.classList.add(liftedClass);
       // Virtualized rows sit in their own positioned wrappers; raise this one above its siblings.
       if (press.row.parentElement) press.row.parentElement.style.zIndex = '5';
@@ -158,6 +165,27 @@ export function useTouchListReorder(options: TouchListReorderOptions): TouchDrop
       press = { x: touch.clientX, y: touch.clientY, row, idx: indexOf(row), scrollTop: scroller().scrollTop };
       lastY = touch.clientY;
       timer = window.setTimeout(lift, latest.current.liftDelayMs ?? LIFT_MS);
+      followTarget(el);
+    };
+
+    // A virtualised row can scroll out of the DOM under the finger. The browser keeps sending
+    // that touch to the removed element, where it no longer bubbles up to the list; without
+    // these the drag would never end and the edge scroll would run on.
+    const followTarget = (el: Element) => {
+      const ifDetached = <E extends Event>(handler: (e: E) => void) => (e: E) => {
+        if (!list.contains(el)) handler(e);
+      };
+      const onMove = ifDetached<TouchEvent>(onTouchMove);
+      const onEnd = ifDetached<Event>(onTouchEnd);
+      const onCancel = ifDetached<Event>(reset);
+      el.addEventListener('touchmove', onMove as EventListener, { passive: false });
+      el.addEventListener('touchend', onEnd);
+      el.addEventListener('touchcancel', onCancel);
+      stopFollowingTarget = () => {
+        el.removeEventListener('touchmove', onMove as EventListener);
+        el.removeEventListener('touchend', onEnd);
+        el.removeEventListener('touchcancel', onCancel);
+      };
     };
 
     const onTouchMove = (e: TouchEvent) => {

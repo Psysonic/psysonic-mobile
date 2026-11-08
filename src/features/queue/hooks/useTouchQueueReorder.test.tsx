@@ -6,18 +6,19 @@ import { LIFT_MS, useTouchQueueReorder } from '@/features/queue/hooks/useTouchQu
 
 const ROW_H = 50;
 
-function Harness({ enabled = true, moveQueueItems, history = false }: {
+function Harness({ enabled = true, moveQueueItems, history = false, onHeldRowChange }: {
   enabled?: boolean;
   moveQueueItems: (indices: readonly number[], gap: number) => void;
   history?: boolean;
+  onHeldRowChange?: (virtualIndex: number | null) => void;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
-  const target = useTouchQueueReorder({ listRef, enabled, moveQueueItems });
+  const target = useTouchQueueReorder({ listRef, enabled, moveQueueItems, onHeldRowChange });
   return (
     <>
       <div ref={listRef} data-testid="list">
         {[0, 1, 2, 3].map(i => (
-          <div key={i}>
+          <div key={i} data-index={i + 20}>
             <div
               data-queue-idx={i}
               data-testid={`row-${i}`}
@@ -80,6 +81,27 @@ describe('useTouchQueueReorder', () => {
     expect(move).toHaveBeenCalledWith([0], 3);
     expect(row(0).classList.contains('queue-item--lifted')).toBe(false);
     expect(screen.getByTestId('target')).toHaveTextContent('none');
+  });
+
+  it('reports the held row by its virtual index until the hold ends', () => {
+    const onHeld = vi.fn();
+    render(<Harness moveQueueItems={vi.fn()} onHeldRowChange={onHeld} />);
+    act(() => { dispatchTouch(grip(2), 'touchstart', at(125)); });
+    expect(onHeld).not.toHaveBeenCalled();
+    hold();
+    expect(onHeld).toHaveBeenLastCalledWith(22);
+    act(() => { dispatchTouch(row(2), 'touchmove', at(40)); });
+    act(() => { dispatchTouch(row(2), 'touchend', at(40)); });
+    expect(onHeld).toHaveBeenLastCalledWith(null);
+    expect(onHeld).toHaveBeenCalledTimes(2);
+  });
+
+  it('a touch that never lifts a row reports nothing', () => {
+    const onHeld = vi.fn();
+    render(<Harness moveQueueItems={vi.fn()} onHeldRowChange={onHeld} />);
+    act(() => { dispatchTouch(row(1), 'touchstart', at(75)); });
+    act(() => { dispatchTouch(row(1), 'touchend', at(75)); });
+    expect(onHeld).not.toHaveBeenCalled();
   });
 
   it('dropping on the lower half of a row inserts after it', () => {
