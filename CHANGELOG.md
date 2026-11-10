@@ -153,6 +153,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * After one track had flowed into the next with gapless playback, pausing made the mini player's progress bar jump, often to the very end of the track, until playback resumed. It now stays where the music stopped.
 
+### Featured artists open on their own page
+
+**By [@Psychotoxical](https://github.com/Psychotoxical), reported by Peewee on Discord, PR [#1852](https://github.com/Psysonic/psysonic/pull/1852)**
+
+* Clicking a featured artist in a track's credits could show a mixed page, with the name and albums of the artist you came from next to the biography of the one you clicked, or just "Artist not found". The page now belongs to the artist you clicked and lists the albums they appear on.
+
+### Device Sync names the tracks in a file name conflict
+
+**By [@Psychotoxical](https://github.com/Psychotoxical), reported by untitled-operator, PR [#1853](https://github.com/Psysonic/psysonic/pull/1853)**
+
+* The sync summary only counted tracks skipped because another track already takes their file name. The row now opens into a list of each skipped track, the track that keeps the file and its path.
+* When another file already occupies a planned path, the error now says so and names the path instead of blaming two tracks.
+
+### Album covers recover after retagging
+
+**By [@Psychotoxical](https://github.com/Psychotoxical), PR [#1854](https://github.com/Psysonic/psysonic/pull/1854)**
+
+* An album could keep the server's "no artwork" image on Home and in lists after retagging, even once the server had the cover. Psysonic now asks the server again when that image is older than 30 minutes and replaces it with the real cover.
+* The album page also asks the server first, so the album's own cover replaces one fetched earlier from an external source.
+
 ## Changed
 
 ### Code rewritten ahead of the app store releases
