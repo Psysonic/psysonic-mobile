@@ -30,6 +30,7 @@ import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import android.view.View
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -47,6 +48,8 @@ object PsysonicMedia {
   private var noisyRegistered = false
   private var resumeOnFocusGain = false
   private var activityPaused = false
+  /** The activity's window is not on screen (activity stopped, screen off). */
+  private var windowHidden = false
 
   /** How long a pause keeps the service (and quick resume from a headset) in place. */
   private const val RELEASE_AFTER_PAUSE_MS = 10 * 60 * 1000L
@@ -98,6 +101,10 @@ object PsysonicMedia {
     // once the view is off screen and may freeze it, so the next track never starts. Keep
     // it at the app's own priority, which the playback service holds up while music plays.
     view.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
+    view.viewTreeObserver.addOnWindowVisibilityChangeListener { visibility ->
+      windowHidden = visibility != View.VISIBLE
+      if (windowHidden) main.post { applyWebAwake() }
+    }
     watchOutputs(activity.applicationContext)
   }
 
@@ -317,6 +324,26 @@ object PsysonicMedia {
   }
 
   /**
+   * In the background the page is hidden twice over: wry pauses the web view with the
+   * activity, and its window goes off screen when the activity stops. Chromium freezes a
+   * hidden page; timers, server requests and Rust's answers then wait until the app is opened
+   * again (S22 16.11.: frozen about 40 s after the screen went off, while music played; the
+   * Android Auto lists stayed empty). While the app has work to do (music, the car, a
+   * download) both are undone; otherwise the page rests.
+   */
+  private fun applyWebAwake() {
+    if (!activityPaused) return
+    val view = webView ?: return
+    if (keepWebAwake()) {
+      view.onResume()
+      if (windowHidden) view.dispatchWindowVisibilityChanged(View.VISIBLE)
+    } else {
+      view.onPause()
+      if (windowHidden) view.dispatchWindowVisibilityChanged(View.GONE)
+    }
+  }
+
+  /**
    * Android Auto is browsing (PsysonicAutoService is bound). The phone shows the car screen,
    * so Psysonic sits in the background with its web view paused, and a list that needs the
    * page's timers (an album, a playlist) would never answer. While the car is there the web
@@ -333,9 +360,7 @@ object PsysonicMedia {
         null,
       )
       refreshPlaybackState()
-      if (activityPaused) {
-        if (keepWebAwake()) webView?.onResume() else webView?.onPause()
-      }
+      applyWebAwake()
     }
   }
 
@@ -550,9 +575,7 @@ object PsysonicMedia {
     )
     if (isPlaying == playing && PsysonicMediaService.running) return
     playing = isPlaying
-    if (activityPaused) {
-      if (keepWebAwake()) webView?.onResume() else webView?.onPause()
-    }
+    applyWebAwake()
     if (isPlaying) {
       main.removeCallbacks(releaseAfterPause)
       if (!radio) requestFocus(ctx)
@@ -663,9 +686,7 @@ object PsysonicMedia {
       return
     }
     downloading = active
-    if (activityPaused) {
-      if (keepWebAwake()) webView?.onResume() else webView?.onPause()
-    }
+    applyWebAwake()
     if (active) {
       val lock = downloadLock ?: (ctx.getSystemService(Context.POWER_SERVICE) as PowerManager)
         .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Psysonic:download")
