@@ -7,10 +7,13 @@
 import { emit } from '@tauri-apps/api/event';
 import { RADIO_STARTING_EVENT, usePlayerStore } from '@/features/playback';
 import { androidMediaHost as host } from '@/lib/api/androidMediaHost';
+import { audioSetDuck } from '@/lib/api/audio';
 
 declare global {
   interface Window {
     __psyAndroidMediaCommand?: (name: string, seconds: number) => void;
+    /** Audio focus: another app speaks over the music (`gain` < 1) or is done (1). */
+    __psyAndroidDuck?: (gain: number) => void;
   }
 }
 
@@ -30,6 +33,10 @@ export function installAndroidMediaCommands(): () => void {
     }
     const event = COMMAND_EVENTS[name];
     if (event) void emit(event);
+  };
+  // Android never ducks the engine's AAudio output itself; the bridge asks for it instead.
+  window.__psyAndroidDuck = gain => {
+    audioSetDuck({ gain }).catch(() => {});
   };
   // Radio plays through the web view's own audio element, which asks for audio focus
   // itself: the native side must not answer that loss of focus with a pause.
@@ -53,5 +60,6 @@ export function installAndroidMediaCommands(): () => void {
     offRadio();
     window.removeEventListener(RADIO_STARTING_EVENT, onRadioStarting);
     delete window.__psyAndroidMediaCommand;
+    delete window.__psyAndroidDuck;
   };
 }

@@ -1,4 +1,4 @@
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use tauri::{AppHandle, Manager};
 
@@ -275,6 +275,34 @@ pub(crate) fn loudness_pre_analysis_db_for_engine(state: &AudioEngine) -> f32 {
 /// can produce inter-sample peaks slightly above ±1.0 → audible distortion.
 /// 10^(-1/20) ≈ 0.891 — inaudible volume difference, eliminates clipping.
 pub(crate) const MASTER_HEADROOM: f32 = 0.891_254;
+
+/// Extra attenuation while another app speaks over the music (navigation prompts). Android
+/// ducks AudioTrack players itself but never AAudio ones (`PlaybackActivityMonitor.
+/// UNDUCKABLE_PLAYER_TYPES`), so the mobile shell sets it from the audio-focus listener.
+/// Stays 1.0 on the desktop.
+static DUCK_GAIN_BITS: AtomicU32 = AtomicU32::new(0x3f80_0000); // 1.0_f32
+
+pub(crate) fn duck_gain() -> f32 {
+    f32::from_bits(DUCK_GAIN_BITS.load(Ordering::Relaxed))
+}
+
+/// A duck gain the engine can use: 0..=1, anything not finite counts as off.
+pub(crate) fn sanitize_duck_gain(gain: f32) -> f32 {
+    if gain.is_finite() {
+        gain.clamp(0.0, 1.0)
+    } else {
+        1.0
+    }
+}
+
+pub(crate) fn set_duck_gain(gain: f32) {
+    DUCK_GAIN_BITS.store(sanitize_duck_gain(gain).to_bits(), Ordering::Relaxed);
+}
+
+/// Headroom times the current duck gain: the factor every effective sink volume uses.
+pub(crate) fn output_headroom() -> f32 {
+    MASTER_HEADROOM * duck_gain()
+}
 pub(crate) const PARTIAL_LOUDNESS_MIN_BYTES: usize = 256 * 1024;
 pub(crate) const PARTIAL_LOUDNESS_EMIT_INTERVAL_MS: u64 = 900;
 
@@ -302,7 +330,7 @@ pub(crate) fn compute_gain(
         1.0
     };
     let gain_linear = gain_linear.min(1.0 / peak);
-    let effective = (volume.clamp(0.0, 1.0) * gain_linear * MASTER_HEADROOM).clamp(0.0, 1.0);
+    let effective = (volume.clamp(0.0, 1.0) * gain_linear * output_headroom()).clamp(0.0, 1.0);
     (gain_linear, effective)
 }
 

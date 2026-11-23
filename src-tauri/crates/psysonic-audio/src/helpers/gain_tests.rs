@@ -319,3 +319,18 @@ fn cached_gain_disables_partial_loudness_hints() {
     assert!(!cached.needs_partial_loudness());
     assert!(uncached.needs_partial_loudness());
 }
+
+#[test]
+fn duck_gain_is_clamped_and_off_when_not_finite() {
+    approx(sanitize_duck_gain(0.25), 0.25, 1e-6);
+    approx(sanitize_duck_gain(-1.0), 0.0, 1e-6);
+    approx(sanitize_duck_gain(3.0), 1.0, 1e-6);
+    approx(sanitize_duck_gain(f32::NAN), 1.0, 1e-6);
+    approx(sanitize_duck_gain(f32::INFINITY), 1.0, 1e-6);
+}
+
+#[test]
+fn duck_gain_defaults_to_off() {
+    // Nothing in the tests ducks, so every effective volume keeps the plain headroom.
+    approx(output_headroom(), MASTER_HEADROOM, 1e-6);
+}

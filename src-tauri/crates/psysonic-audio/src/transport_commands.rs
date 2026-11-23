@@ -12,8 +12,8 @@ use tauri::{AppHandle, State};
 
 use super::engine::{audio_http_client, AudioEngine};
 use super::helpers::{
-    cancel_sink_volume_ramp, cancel_transport_sink_volume_ramp,
-    ramp_sink_volume_smooth_over_secs_then, sink_volume_now, MASTER_HEADROOM,
+    cancel_sink_volume_ramp, cancel_transport_sink_volume_ramp, output_headroom,
+    ramp_sink_volume_smooth_over_secs_then, sink_volume_now,
 };
 use super::playback_rate::{
     content_position_from_samples, raw_counter_samples_for_content_position,
@@ -202,7 +202,7 @@ pub async fn audio_resume(
                 return Err("audio sink not ready".to_string());
             }
             let target =
-                (cur.base_volume * cur.replay_gain_linear * MASTER_HEADROOM).clamp(0.0, 1.0);
+                (cur.base_volume * cur.replay_gain_linear * output_headroom()).clamp(0.0, 1.0);
             if sink.is_paused() {
                 let pos = cur.paused_at.unwrap_or(cur.seek_offset);
                 if fade_secs.is_some() {
@@ -233,7 +233,7 @@ pub async fn audio_resume(
                 .is_some_and(|active_sink| Arc::ptr_eq(active_sink, &completion_sink))
             {
                 completion_sink.set_volume(
-                    (cur.base_volume * cur.replay_gain_linear * MASTER_HEADROOM).clamp(0.0, 1.0),
+                    (cur.base_volume * cur.replay_gain_linear * output_headroom()).clamp(0.0, 1.0),
                 );
             }
         });

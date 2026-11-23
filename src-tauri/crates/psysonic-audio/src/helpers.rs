@@ -20,10 +20,10 @@ pub(crate) use gain::{
     compute_gain, current_playback_server_id_str, gain_linear_to_db,
     loudness_gain_db_after_resolve, loudness_gain_placeholder_until_cache,
     loudness_pre_analysis_db_for_engine, loudness_ui_current_gain_db, normalization_engine_name,
-    provisional_loudness_gain_from_progress, resolve_loudness_gain_from_cache,
+    output_headroom, provisional_loudness_gain_from_progress, resolve_loudness_gain_from_cache,
     resolve_loudness_gain_from_cache_impl, resolve_loudness_gain_with_cache,
-    resolve_track_gain_inputs, ResolveLoudnessCacheOpts, TrackGainInputs, MASTER_HEADROOM,
-    PARTIAL_LOUDNESS_EMIT_INTERVAL_MS, PARTIAL_LOUDNESS_MIN_BYTES,
+    resolve_track_gain_inputs, set_duck_gain, ResolveLoudnessCacheOpts, TrackGainInputs,
+    MASTER_HEADROOM, PARTIAL_LOUDNESS_EMIT_INTERVAL_MS, PARTIAL_LOUDNESS_MIN_BYTES,
 };
 pub(crate) use identity::{analysis_cache_track_id, playback_identity, same_playback_target};
 pub use stream_spill::{

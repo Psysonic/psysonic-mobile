@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const { emitMock } = vi.hoisted(() => ({ emitMock: vi.fn() }));
+const { emitMock, duckMock } = vi.hoisted(() => ({ emitMock: vi.fn(), duckMock: vi.fn(async () => {}) }));
 vi.mock('@tauri-apps/api/event', () => ({ emit: emitMock }));
+vi.mock('@/lib/api/audio', () => ({ audioSetDuck: duckMock }));
 
 import { installAndroidMediaCommands } from './androidMedia';
 import { coverPathFromUrl } from '@/lib/api/androidMediaHost';
@@ -39,5 +40,14 @@ describe('installAndroidMediaCommands', () => {
     ]);
     cleanup();
     expect(window.__psyAndroidMediaCommand).toBeUndefined();
+  });
+
+  it('passes audio-focus ducking on to the engine, which Android never ducks itself', () => {
+    const cleanup = installAndroidMediaCommands();
+    window.__psyAndroidDuck?.(0.25);
+    window.__psyAndroidDuck?.(1);
+    expect(duckMock.mock.calls).toEqual([[{ gain: 0.25 }], [{ gain: 1 }]]);
+    cleanup();
+    expect(window.__psyAndroidDuck).toBeUndefined();
   });
 });

@@ -624,9 +624,25 @@ object PsysonicMedia {
         resumeOnFocusGain = playing
         if (playing) command("pause")
       }, FOCUS_LOSS_GRACE_MS)
-      AudioManager.AUDIOFOCUS_GAIN -> { if (resumeOnFocusGain && !playing) command("play"); resumeOnFocusGain = false }
-      // Ducking for navigation prompts is done by the system for media streams.
+      AudioManager.AUDIOFOCUS_GAIN -> {
+        duck(false)
+        if (resumeOnFocusGain && !playing) command("play")
+        resumeOnFocusGain = false
+      }
+      // A navigation prompt or a notification speaks over the music. Android ducks AudioTrack
+      // players itself (the car player's ExoPlayer) but never AAudio ones, and the web view's
+      // engine plays through AAudio (`PlaybackActivityMonitor.UNDUCKABLE_PLAYER_TYPES`): the
+      // music stayed as loud as before under every prompt (car test 21.11.). So it ducks itself.
+      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> duck(true)
     }
+  }
+
+  private const val DUCK_GAIN = 0.25
+
+  /** Lowers (or restores) the web view engine's output; the car player is ducked by Android. */
+  private fun duck(on: Boolean) {
+    if (PsysonicCarPlayer.active) return
+    js("window.__psyAndroidDuck && window.__psyAndroidDuck(${if (on) DUCK_GAIN else 1.0})")
   }
 
   private fun requestFocus(ctx: Context) {

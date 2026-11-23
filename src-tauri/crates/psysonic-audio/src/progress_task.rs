@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Runtime};
 
 use super::engine::{AudioCurrent, PendingSeekState};
-use super::helpers::{ramp_sink_volume, ProgressPayload, MASTER_HEADROOM};
+use super::helpers::{output_headroom, ramp_sink_volume, ProgressPayload};
 use super::playback_rate::{effective_duration_secs, effective_position_secs, PlaybackRateAtomics};
 use super::state::{
     install_current_source_done, ChainedInfo, ChainedSampleCounter, CurrentSourceDone,
@@ -226,7 +226,7 @@ pub(crate) fn spawn_progress_task<E: ProgressEmitter>(
                     {
                         let mut cur = current_arc.lock().unwrap();
                         let prev_effective =
-                            (cur.base_volume * cur.replay_gain_linear * MASTER_HEADROOM)
+                            (cur.base_volume * cur.replay_gain_linear * output_headroom())
                                 .clamp(0.0, 1.0);
                         cur.replay_gain_linear = info.replay_gain_linear;
                         cur.base_volume = info.base_volume;
@@ -236,7 +236,7 @@ pub(crate) fn spawn_progress_task<E: ProgressEmitter>(
                         cur.streaming_seek = None;
                         if let Some(sink) = &cur.sink {
                             let effective =
-                                (cur.base_volume * cur.replay_gain_linear * MASTER_HEADROOM)
+                                (cur.base_volume * cur.replay_gain_linear * output_headroom())
                                     .clamp(0.0, 1.0);
                             ramp_sink_volume(Arc::clone(sink), prev_effective, effective);
                         }

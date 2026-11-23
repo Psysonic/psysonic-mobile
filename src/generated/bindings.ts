@@ -146,6 +146,11 @@ export const commands = {
 	audioStop: () => __TAURI_INVOKE<void>("audio_stop"),
 	audioSeek: (seconds: number | null) => typedError<null, string>(__TAURI_INVOKE("audio_seek", { seconds })),
 	audioSetVolume: (volume: number | null) => __TAURI_INVOKE<void>("audio_set_volume", { volume }),
+	/**
+	 * Attenuates the output while another app speaks over the music (`gain` 1.0 = off), e.g.
+	 * 0.25 for a navigation prompt. The user's volume stays as it is.
+	 */
+	audioSetDuck: (gain: number | null) => __TAURI_INVOKE<void>("audio_set_duck", { gain }),
 	audioUpdateReplayGain: (volume: number | null, replayGainDb: number | null, replayGainPeak: number | null, loudnessGainDb: number | null, preGainDb: number | null, fallbackDb: number | null) => __TAURI_INVOKE<void>("audio_update_replay_gain", { volume, replayGainDb, replayGainPeak, loudnessGainDb, preGainDb, fallbackDb }),
 	audioSetEq: (gains: [(number | null), (number | null), (number | null), (number | null), (number | null), (number | null), (number | null), (number | null), (number | null), (number | null)], enabled: boolean, preGain: number | null) => __TAURI_INVOKE<void>("audio_set_eq", { gains, enabled, preGain }),
 	audioSetPlaybackRate: (enabled: boolean, strategy: string, speed: number | null, pitchSemitones: number | null) => __TAURI_INVOKE<void>("audio_set_playback_rate", { enabled, strategy, speed, pitchSemitones }),

@@ -34,6 +34,11 @@ export function audioSetVolume(args: { volume: number | null }): Promise<void> {
   return commands.audioSetVolume(args.volume);
 }
 
+/** Attenuates the output while another app speaks over the music; 1 = off (mobile shell). */
+export function audioSetDuck(args: { gain: number }): Promise<void> {
+  return commands.audioSetDuck(args.gain);
+}
+
 export function audioUpdateReplayGain(args: {
   volume: number | null;
   replayGainDb: number | null;

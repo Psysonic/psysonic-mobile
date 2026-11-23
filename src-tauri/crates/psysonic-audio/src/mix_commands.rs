@@ -18,7 +18,22 @@ pub fn audio_set_volume(volume: f32, state: State<'_, AudioEngine>) {
     if let Some(sink) = &cur.sink {
         let prev_effective = sink_volume_now(sink);
         let next_effective =
-            (cur.base_volume * cur.replay_gain_linear * MASTER_HEADROOM).clamp(0.0, 1.0);
+            (cur.base_volume * cur.replay_gain_linear * output_headroom()).clamp(0.0, 1.0);
+        ramp_sink_volume(Arc::clone(sink), prev_effective, next_effective);
+    }
+}
+
+/// Attenuates the output while another app speaks over the music (`gain` 1.0 = off), e.g.
+/// 0.25 for a navigation prompt. The user's volume stays as it is.
+#[tauri::command]
+#[specta::specta]
+pub fn audio_set_duck(gain: f32, state: State<'_, AudioEngine>) {
+    set_duck_gain(gain);
+    let cur = state.current.lock().unwrap();
+    if let Some(sink) = &cur.sink {
+        let prev_effective = sink_volume_now(sink);
+        let next_effective =
+            (cur.base_volume * cur.replay_gain_linear * output_headroom()).clamp(0.0, 1.0);
         ramp_sink_volume(Arc::clone(sink), prev_effective, next_effective);
     }
 }
