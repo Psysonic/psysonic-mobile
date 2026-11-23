@@ -19,7 +19,29 @@ vi.mock('@/cover', () => ({
     artists.map(artist => ({ fetchCoverArtId: `ar-${artist.id}` })),
 }));
 
-import { attachCarPlayCovers } from './carplayCovers';
+import { attachCarPlayCovers, carAlbumCoverPaths } from './carplayCovers';
+
+describe('carAlbumCoverPaths', () => {
+  beforeEach(() => {
+    covers.peek.mockReset();
+    covers.ensure.mockClear();
+  });
+
+  it('looks each album up once, downloads the missing covers and returns the files by album id', async () => {
+    covers.peek
+      .mockResolvedValueOnce({ 'al-a:256': '/covers/a/256.webp|3' })
+      .mockResolvedValueOnce({ 'al-b:256': '/covers/b/256.webp' });
+    const paths = await carAlbumCoverPaths([
+      { albumId: 'a', serverId: 'srv' },
+      { albumId: 'a', serverId: 'srv' },
+      { albumId: 'b', serverId: 'srv' },
+      { albumId: '', serverId: 'srv' },
+    ]);
+    expect([...paths]).toEqual([['a', '/covers/a/256.webp'], ['b', '/covers/b/256.webp']]);
+    expect(covers.ensure).toHaveBeenCalledTimes(1);
+    expect(covers.ensure).toHaveBeenCalledWith([{ fetchCoverArtId: 'al-b' }], 256);
+  });
+});
 
 const row = (id: string, kind: 'album' | 'artist' = 'album') => ({
   cover: { kind, id, serverId: 'srv' },

@@ -81,6 +81,45 @@ async function peekImages(rows: CoverRow[]): Promise<Map<CoverRow, string>> {
   return found;
 }
 
+/** An album whose cover a track shows on the car's now-playing screen. */
+export interface CarAlbumCoverSource {
+  albumId: string;
+  coverArt?: string;
+  serverId: string;
+}
+
+/** Albums of a resume queue whose covers are fetched, from the playing track on. */
+const RESUME_COVER_ALBUMS = 40;
+
+/**
+ * Cover files on disk for the albums of a queue, by album id, downloading the missing ones
+ * first: the car player shows them when it resumes this queue with the app closed, where it
+ * cannot fetch anything itself (remote cover URLs carry the server login).
+ */
+export async function carAlbumCoverPaths(albums: CarAlbumCoverSource[]): Promise<Map<string, string>> {
+  const seen = new Set<string>();
+  const unique = albums.filter(album => {
+    if (!album.albumId || seen.has(album.albumId)) return false;
+    seen.add(album.albumId);
+    return true;
+  }).slice(0, RESUME_COVER_ALBUMS);
+  const rows = (await Promise.all(unique.map((album, index) =>
+    refFor({ kind: 'album', id: album.albumId, coverArt: album.coverArt, serverId: album.serverId })
+      .then(ref => (ref ? { section: 0, row: index, ref } : null))
+      .catch(() => null))))
+    .filter((row): row is CoverRow => row !== null);
+  const found = await peekImages(rows);
+  const missing = rows.filter(row => !found.has(row));
+  for (let start = 0; start < missing.length; start += COVER_CHUNK) {
+    const chunk = missing.slice(start, start + COVER_CHUNK);
+    await coverCacheEnsureBatch(chunk.map(row => row.ref), CARPLAY_COVER_TIER).catch(() => {});
+    for (const [row, image] of await peekImages(chunk)) found.set(row, image);
+  }
+  const paths = new Map<string, string>();
+  for (const [row, image] of found) paths.set(unique[row.row].albumId, image);
+  return paths;
+}
+
 /**
  * Downloads the missing covers chunk by chunk, top rows first, reporting each chunk.
  * `downloaded` is false for rows further down whose covers were on disk already.

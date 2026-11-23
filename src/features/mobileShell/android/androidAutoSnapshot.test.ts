@@ -21,8 +21,16 @@ vi.mock('@/lib/api/subsonicStreamUrl', () => ({
   buildStreamUrlForServer: (_sid: string, id: string) => `https://srv/stream?id=${id}&raw`,
 }));
 vi.mock('@/features/playback/utils/playback/playbackServer', () => ({ playbackCacheKeyForTrack: () => 'srv' }));
+const coverPaths = vi.fn(async (_albums: Array<{ albumId: string }>) => new Map([['a1', '/covers/a1.jpg']]));
+vi.mock('@/features/mobileShell/car/carplayCovers', () => ({
+  carAlbumCoverPaths: (albums: Array<{ albumId: string }>) => coverPaths(albums),
+}));
+vi.mock('@/features/playback/store/queueTrackView', () => ({
+  resolveQueueTrack: (ref: { trackId: string }) => track(ref.trackId, ref.trackId === 't3' ? 'a2' : 'a1'),
+}));
 
-const { buildCarSnapshot } = await import('./androidAutoSnapshot');
+const { buildCarSnapshot, buildCarResume } = await import('./androidAutoSnapshot');
+const { usePlayerStore } = await import('@/features/playback');
 
 function track(id: string, albumId = 'a1'): Track {
   return { id, title: `Song ${id}`, artist: 'Artist', album: 'Album', albumId, duration: 200, serverId: 'srv' };
@@ -73,5 +81,36 @@ describe('buildCarSnapshot', () => {
     expect(album[0]).toMatchObject({ url: 'https://srv/stream?id=t1', stream: 'https://srv/stream?id=t1', cover: '/covers/a1.jpg' });
     // A downloaded song keeps a stream to fall back on.
     expect(album[1]).toMatchObject({ url: 'psysonic-local:///files/local.flac', stream: 'https://srv/stream?id=local&raw' });
+  });
+});
+
+describe('buildCarResume', () => {
+  it('carries each track\'s album cover, so the car shows covers when it resumes with the app closed', async () => {
+    usePlayerStore.setState({
+      queueItems: ['t0', 't1', 't2', 't3'].map(trackId => ({ serverId: 'srv', trackId })),
+      queueIndex: 1,
+      currentTime: 42,
+      currentRadio: null,
+    });
+
+    const resume = await buildCarResume();
+
+    expect(resume?.positionSecs).toBe(42);
+    expect(resume?.tracks.map(entry => [entry.track.id, entry.cover])).toEqual([
+      ['t1', '/covers/a1.jpg'],
+      ['t2', '/covers/a1.jpg'],
+      // No cover on disk and none to fetch: the car shows none, as before.
+      ['t3', ''],
+    ]);
+    expect(coverPaths).toHaveBeenCalledWith([
+      { albumId: 'a1', coverArt: undefined, serverId: 'srv' },
+      { albumId: 'a1', coverArt: undefined, serverId: 'srv' },
+      { albumId: 'a2', coverArt: undefined, serverId: 'srv' },
+    ]);
+  });
+
+  it('keeps no queue for radio', async () => {
+    usePlayerStore.setState({ currentRadio: { id: 's', name: 'Station', streamUrl: 'https://radio/s' } as never });
+    expect(await buildCarResume()).toBeNull();
   });
 });

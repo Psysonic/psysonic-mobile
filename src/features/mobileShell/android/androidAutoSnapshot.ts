@@ -19,6 +19,7 @@ import {
   carPlayShownTracks,
 } from '@/features/mobileShell/car/carplayContent';
 import { carListJson } from '@/features/mobileShell/android/androidAuto';
+import { carAlbumCoverPaths } from '@/features/mobileShell/car/carplayCovers';
 import { usePlayerStore, resolveQueueTrack } from '@/features/playback';
 import {
   playbackCacheKeyForTrack,
@@ -207,12 +208,22 @@ export async function buildCarSnapshot(): Promise<CarSnapshot> {
   return snapshot;
 }
 
-export function buildCarResume(): CarResume | null {
+/**
+ * The queue to resume, with each track's album cover on disk: with the app closed, the car
+ * player has no other way to a cover for songs whose album is not in the car's lists.
+ */
+export async function buildCarResume(): Promise<CarResume | null> {
   const { queueItems, queueIndex, currentTime, currentRadio } = usePlayerStore.getState();
   if (currentRadio || queueItems.length === 0 || queueIndex < 0) return null;
   const refs = queueItems.slice(queueIndex, queueIndex + RESUME_TRACKS);
+  const tracks = refs.map(ref => ({ ref, track: resolveQueueTrack(ref) }));
+  const covers = await carAlbumCoverPaths(tracks.map(({ ref, track }) => ({
+    albumId: track.albumId,
+    coverArt: track.coverArt,
+    serverId: ref.serverId || playbackCacheKeyForTrack(track),
+  }))).catch(() => new Map<string, string>());
   return {
-    tracks: refs.map(ref => snapshotTrack(resolveQueueTrack(ref), new Map(), ref.serverId)),
+    tracks: tracks.map(({ ref, track }) => snapshotTrack(track, covers, ref.serverId)),
     index: 0,
     positionSecs: currentTime,
   };
@@ -280,9 +291,15 @@ export function installAndroidAutoSnapshot(): () => void {
       building = false;
     }
   };
+  // Saves run one after another, so a slower earlier save never overwrites a newer queue.
+  let resumeChain: Promise<void> = Promise.resolve();
   const saveResume = () => {
-    const resume = buildCarResume();
-    if (resume) host()?.saveCarResume?.(JSON.stringify(resume));
+    resumeChain = resumeChain
+      .then(async () => {
+        const resume = await buildCarResume();
+        if (resume) host()?.saveCarResume?.(JSON.stringify(resume));
+      })
+      .catch(e => frontendDebugLog('car', JSON.stringify({ step: 'resume', error: String(e) })));
   };
   let resumeTimer: ReturnType<typeof setTimeout> | undefined;
   const offPlayer = usePlayerStore.subscribe((state, prev) => {
