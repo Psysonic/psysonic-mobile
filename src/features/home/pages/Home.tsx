@@ -61,7 +61,6 @@ import {
 import MainstageDiagnosticFrame from '@/features/home/components/MainstageDiagnosticFrame';
 import StarredEmptyRail from '@/features/home/components/StarredEmptyRail';
 import { IS_MOBILE_SHELL } from '@/lib/util/platform';
-import { deferBackgroundWork } from '@/lib/util/deferBackgroundWork';
 import {
   MAINSTAGE_DIAGNOSTIC_SECTION_IDS,
   useMainstageDiagnosticStore,
@@ -416,10 +415,8 @@ export default function Home() {
       }
       // Keep this visit stable, but prepare a fresh snapshot so the next visit
       // is instant. Sync/reconnect refreshes also update the currently visible feed.
-      const forcedRefresh = syncRefresh || reconnectRefresh || manualRefresh;
-      let cancelPrefetch = () => {};
-      if (!offlineBrowseActive || forcedRefresh) {
-        const prepareNextVisit = () => void (async () => {
+      if (!offlineBrowseActive || syncRefresh || reconnectRefresh || manualRefresh) {
+        void (async () => {
           try {
             const freshLoad = startFreshHomeFeed();
             const loaded = await freshLoad.feed;
@@ -446,16 +443,11 @@ export default function Home() {
             finishManualRefresh();
           }
         })();
-        // A refresh the user or a sync asked for runs now; the prefetch for the next visit
-        // waits on a phone until the page settled (it collided with the player's close).
-        if (forcedRefresh) prepareNextVisit();
-        else cancelPrefetch = deferBackgroundWork(prepareNextVisit);
       } else {
         finishManualRefresh();
       }
       return () => {
         cancelled = true;
-        cancelPrefetch();
       };
     }
 

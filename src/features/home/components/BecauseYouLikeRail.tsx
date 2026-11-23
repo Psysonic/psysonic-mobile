@@ -3,7 +3,6 @@ import { resolveAlbum, resolveMediaServerId } from '@/features/offline';
 import type { SubsonicAlbum } from '@/lib/api/subsonicTypes';
 import { songToTrack } from '@/lib/media/songToTrack';
 import { shuffleArray } from '@/lib/util/shuffleArray';
-import { deferBackgroundWork } from '@/lib/util/deferBackgroundWork';
 import React, { memo, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, ListPlus, Music } from 'lucide-react';
@@ -496,8 +495,6 @@ export default function BecauseYouLikeRail({
 
   useEffect(() => {
     let cancelled = false;
-    // The next batch only serves the next visit: on a phone it waits until the page settled.
-    let cancelPrefetch = () => {};
     if (pool.length === 0) {
       // Pool is still being loaded (Home.tsx fetches data asynchronously). Do not
       // run the fetch/reserve logic yet — useLayoutEffect already shows reserve or
@@ -563,7 +560,7 @@ export default function BecauseYouLikeRail({
         });
         setRefreshing(false);
         // Pre-fetch the next batch so the next visit is also instant.
-        cancelPrefetch = deferBackgroundWork(() => void fillBecauseReserve(pool, scopeKey, scopeVersion, scopes, source, anchorHistKey, picksHistKey));
+        void fillBecauseReserve(pool, scopeKey, scopeVersion, scopes, source, anchorHistKey, picksHistKey);
         return;
       }
 
@@ -573,7 +570,7 @@ export default function BecauseYouLikeRail({
       if (snap && snap.recs.length > 0) {
         reportFinal('ready', snap.recs.length, 'cache');
         setRefreshing(false);
-        cancelPrefetch = deferBackgroundWork(() => void fillBecauseReserve(pool, scopeKey, scopeVersion, scopes, source, anchorHistKey, picksHistKey));
+        void fillBecauseReserve(pool, scopeKey, scopeVersion, scopes, source, anchorHistKey, picksHistKey);
         return;
       }
 
@@ -625,7 +622,7 @@ export default function BecauseYouLikeRail({
         });
         setRefreshing(false);
         // Pre-fetch next batch so the next visit is instant.
-        cancelPrefetch = deferBackgroundWork(() => void fillBecauseReserve(pool, scopeKey, scopeVersion, scopes, source, anchorHistKey, picksHistKey));
+        void fillBecauseReserve(pool, scopeKey, scopeVersion, scopes, source, anchorHistKey, picksHistKey);
       } else {
         reportFinal(outcome.status, 0, 'network');
         // Network failed — restore session cache if available.
@@ -645,10 +642,7 @@ export default function BecauseYouLikeRail({
       }
     })();
 
-    return () => {
-      cancelled = true;
-      cancelPrefetch();
-    };
+    return () => { cancelled = true; };
     // Gate on poolKey (the stable top-anchor identity), not the `pool` array ref.
     // `pool` is rebuilt whenever Home's mostPlayed changes, so loading more Most
     // Played albums (which feeds this pool) would otherwise re-run this effect and
