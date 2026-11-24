@@ -1,0 +1,128 @@
+name: Android lint
+
+# Android lint on the app's Kotlin, manifest and resources. Findings that were there when
+# lint came in stay in src-tauri/android/lint-baseline.xml; any new error fails the run
+# (for example a call that needs a newer Android than minSdk).
+on:
+  pull_request:
+    paths:
+      - 'src-tauri/android/**'
+      - 'src-tauri/tauri.conf.json'
+      - 'src-tauri/Cargo.toml'
+      - 'src-tauri/Cargo.lock'
+      - '.github/workflows/android-lint.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src-tauri/android/**'
+      - 'src-tauri/tauri.conf.json'
+      - 'src-tauri/Cargo.toml'
+      - 'src-tauri/Cargo.lock'
+      - '.github/workflows/android-lint.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: psysonic-android-lint-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # patch-gen reads `cargo metadata` for the certificate verifier's Kotlin half.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: NDK toolchain for C dependencies
+        run: |
+          ndk="$ANDROID_NDK_LATEST_HOME"
+          bin="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          {
+            echo "NDK_HOME=$ndk"
+            echo "ANDROID_NDK_HOME=$ndk"
+            echo "CC_aarch64_linux_android=$bin/aarch64-linux-android28-clang"
+            echo "CXX_aarch64_linux_android=$bin/aarch64-linux-android28-clang++"
+            echo "AR_aarch64_linux_android=$bin/llvm-ar"
+            echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$bin/aarch64-linux-android28-clang"
+          } >> "$GITHUB_ENV"
+
+      - run: npm ci
+
+      - run: npx tauri android init --ci
+
+      - run: node src-tauri/android/patch-gen.mjs
+
+      # What `tauri android build` writes before Gradle runs: the Tauri plugins' Gradle projects
+      # (tauri.settings.gradle, app/tauri.build.gradle.kts, from tauri-build) and the Kotlin
+      # glue (TauriActivity, RustWebView, ... from tauri and wry). Their build scripts write it
+      # during a cargo check for Android with the variables the Tauri CLI sets. tauri's build
+      # script does not rerun when those variables change, so its cached run is removed first.
+      - name: Generated Gradle and Kotlin files
+        working-directory: src-tauri
+        run: |
+          mkdir -p ../dist
+          [ -f ../dist/index.html ] || echo '<!doctype html><title>lint</title>' > ../dist/index.html
+          kotlin="$PWD/gen/android/app/src/main/java/dev/psysonic/player/generated"
+          mkdir -p "$kotlin"
+          if [ -d target/aarch64-linux-android/debug/build ]; then
+            find target/aarch64-linux-android/debug/build -maxdepth 1 -regextype posix-extended \
+              -regex '.*/tauri-[0-9a-f]{16}' -exec rm -rf {} +
+          fi
+          TAURI_ANDROID_PROJECT_PATH="$PWD/gen/android" \
+          TAURI_ANDROID_PACKAGE_UNESCAPED=dev.psysonic.player \
+          WRY_ANDROID_PACKAGE=dev.psysonic.player \
+          WRY_ANDROID_LIBRARY=psysonic_lib \
+          WRY_ANDROID_KOTLIN_FILES_OUT_DIR="$kotlin" \
+            cargo check -p psysonic --lib --target aarch64-linux-android --message-format short
+          test -f gen/android/tauri.settings.gradle
+          test -f "$kotlin/TauriActivity.kt"
+
+      - name: Android lint
+        working-directory: src-tauri/gen/android
+        run: ./gradlew :app:lintUniversalRelease --console=plain
+
+      - name: Summary
+        if: always()
+        run: |
+          report=$(find src-tauri/gen/android/app/build -name 'lint-results-universalRelease.txt' | head -n 1)
+          {
+            echo "## Android lint"
+            echo
+            if [ -z "$report" ]; then
+              echo "No lint report (lint did not run)."
+            else
+              grep -E "^Lint found|^No issues" "$report" || head -n 1 "$report"
+              echo
+              echo "### New errors"
+              grep -E ": Error:" "$report" | sed -E 's#^.*/app/##' || echo "none"
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: android-lint-report
+          path: src-tauri/gen/android/app/build/reports/lint-results-universalRelease.*
+          if-no-files-found: ignore
+          retention-days: 14

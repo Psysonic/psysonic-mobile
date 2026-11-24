@@ -311,4 +311,17 @@ ${indent}}
 `);
   console.log('[patch-gen] gradle: beta id and name when PSYSONIC_ANDROID_BETA=1');
 }
+// Android lint (`android-lint.yml`): the findings that were there when lint came in stay
+// in `lint-baseline.xml` next to this script; any new one fails the run.
+const lintMarker = '// psysonic: lint baseline';
+if (!gradle.includes(lintMarker)) {
+  const namespaceLine = /^( *)namespace = "dev\.psysonic\.player"\r?\n/m;
+  if (!namespaceLine.test(gradle)) throw new Error('no namespace line in build.gradle.kts');
+  gradle = gradle.replace(namespaceLine, (match, indent) => `${match}${indent}${lintMarker}
+${indent}lint {
+${indent}    baseline = file("../../../android/lint-baseline.xml")
+${indent}}
+`);
+  console.log('[patch-gen] gradle: lint baseline from src-tauri/android/lint-baseline.xml');
+}
 writeFileSync(gradleFile, gradle);
