@@ -81,7 +81,8 @@ jobs:
         run: |
           mkdir -p ../dist
           [ -f ../dist/index.html ] || echo '<!doctype html><title>lint</title>' > ../dist/index.html
-          TAURI_ANDROID_PROJECT_PATH="$PWD/gen/android" cargo check -p psysonic --lib --target aarch64-linux-android --message-format short
+          TAURI_ANDROID_PROJECT_PATH="$PWD/gen/android" TAURI_ANDROID_PACKAGE_UNESCAPED=dev.psysonic.player \
+            cargo check -p psysonic --lib --target aarch64-linux-android --message-format short
           test -f gen/android/tauri.settings.gradle
 
       - name: Android lint
