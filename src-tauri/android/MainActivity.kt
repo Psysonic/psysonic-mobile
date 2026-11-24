@@ -157,6 +157,16 @@ class MainActivity : TauriActivity() {
     PsysonicMedia.onActivityResumed()
   }
 
+  override fun onStart() {
+    super.onStart()
+    PsysonicMedia.onActivityStarted()
+  }
+
+  override fun onStop() {
+    super.onStop()
+    PsysonicMedia.onActivityStopped()
+  }
+
   /** The web view goes with the activity; widget taps then open the app again. */
   override fun onDestroy() {
     PsysonicWidgets.detach(shellWebView)
