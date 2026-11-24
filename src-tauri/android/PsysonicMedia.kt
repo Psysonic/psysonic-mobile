@@ -101,9 +101,10 @@ object PsysonicMedia {
     // once the view is off screen and may freeze it, so the next track never starts. Keep
     // it at the app's own priority, which the playback service holds up while music plays.
     view.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
-    // The listener is Android 13+; before that, the activity's stop and start mark the same
-    // moments (onActivityStopped / onActivityStarted). Calling it on Android 12 crashed the app.
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    // The listener is Android 14+; before that, the activity's stop and start mark the same
+    // moments (onActivityStopped / onActivityStarted). Calling it on Android 13 and older
+    // crashed the app.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
       view.viewTreeObserver.addOnWindowVisibilityChangeListener { visibility ->
         windowShown(visibility == View.VISIBLE)
       }
@@ -331,13 +332,13 @@ object PsysonicMedia {
     if (windowHidden) main.post { applyWebAwake() }
   }
 
-  /** Android 12 and older: the window leaves the screen when the activity stops. */
+  /** Android 13 and older: the window leaves the screen when the activity stops. */
   fun onActivityStopped() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) windowShown(false)
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) windowShown(false)
   }
 
   fun onActivityStarted() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) windowShown(true)
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) windowShown(true)
   }
 
   /**
