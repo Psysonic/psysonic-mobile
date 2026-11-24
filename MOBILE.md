@@ -26,7 +26,7 @@ mobile apps with the next merge, so desktop, iOS and Android stay in step.
 | Native (Swift) | `src-tauri/ios/widgets/` (home and lock screen widgets, Control Center controls) | | |
 | Touch UI (React) | `src/features/mobileShell/ios/` | `src/features/mobileShell/android/`, `src/styles/mobile/mobile-android.css` | the rest of `src/features/mobileShell/` and code behind `IS_MOBILE_SHELL` |
 | Build config | `src-tauri/tauri.ios.conf.json`, `src-tauri/Info.ios.plist`, `src-tauri/ios/patch-gen.mjs` (adds the widget extension to the generated Xcode project) | `src-tauri/tauri.android.conf.json`, `src-tauri/android/patch-gen.mjs` (patches the generated Gradle project) | `src-tauri/tauri.conf.json` |
-| CI | `.github/workflows/ios.yml` | `.github/workflows/android.yml` | |
+| CI | `.github/workflows/ios.yml` | `.github/workflows/android.yml`, `.github/workflows/android-lint.yml` | |
 
 Rules of thumb:
 
@@ -170,6 +170,11 @@ phone from a desktop backup. Check the touch side when adding one.
   too slow on a phone (the first library sync blocks every page).
 - Both workflows start by hand only (`gh workflow run <file> -f mode=…`); they run on mobile
   `main` unless `--ref` names a branch.
+- Android lint: `android-lint.yml` runs on every pull request that touches `src-tauri/android/`
+  (and on `main`). Findings that were there when lint came in are listed in
+  `src-tauri/android/lint-baseline.xml`; any new error fails the run. Locally, after
+  `patch-gen.mjs`: `./gradlew :app:lintUniversalRelease` in `src-tauri/gen/android`. Fixing an
+  old finding: refresh the list with `./gradlew :app:updateLintBaselineUniversalRelease`.
 - The desktop workflows that arrive with every merge of Psysonic `main` stay in the tree (deleting
   them would conflict at each merge). The ones that publish or write are switched off in this
   repository's Actions settings (`gh workflow disable`); `ci-main`, `eslint`, `frontend-tests`
