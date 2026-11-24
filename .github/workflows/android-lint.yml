@@ -73,17 +73,30 @@ jobs:
 
       - run: node src-tauri/android/patch-gen.mjs
 
-      # The Tauri plugins' Gradle projects (tauri.settings.gradle, app/tauri.build.gradle.kts)
-      # are written by tauri-build's build script when TAURI_ANDROID_PROJECT_PATH is set; a
-      # cargo check for Android runs it without building the app.
-      - name: Gradle files of the Tauri plugins
+      # What `tauri android build` writes before Gradle runs: the Tauri plugins' Gradle projects
+      # (tauri.settings.gradle, app/tauri.build.gradle.kts, from tauri-build) and the Kotlin
+      # glue (TauriActivity, RustWebView, ... from tauri and wry). Their build scripts write it
+      # during a cargo check for Android with the variables the Tauri CLI sets. tauri's build
+      # script does not rerun when those variables change, so its cached run is removed first.
+      - name: Generated Gradle and Kotlin files
         working-directory: src-tauri
         run: |
           mkdir -p ../dist
           [ -f ../dist/index.html ] || echo '<!doctype html><title>lint</title>' > ../dist/index.html
-          TAURI_ANDROID_PROJECT_PATH="$PWD/gen/android" TAURI_ANDROID_PACKAGE_UNESCAPED=dev.psysonic.player \
+          kotlin="$PWD/gen/android/app/src/main/java/dev/psysonic/player/generated"
+          mkdir -p "$kotlin"
+          if [ -d target/aarch64-linux-android/debug/build ]; then
+            find target/aarch64-linux-android/debug/build -maxdepth 1 -regextype posix-extended \
+              -regex '.*/tauri-[0-9a-f]{16}' -exec rm -rf {} +
+          fi
+          TAURI_ANDROID_PROJECT_PATH="$PWD/gen/android" \
+          TAURI_ANDROID_PACKAGE_UNESCAPED=dev.psysonic.player \
+          WRY_ANDROID_PACKAGE=dev.psysonic.player \
+          WRY_ANDROID_LIBRARY=psysonic_lib \
+          WRY_ANDROID_KOTLIN_FILES_OUT_DIR="$kotlin" \
             cargo check -p psysonic --lib --target aarch64-linux-android --message-format short
           test -f gen/android/tauri.settings.gradle
+          test -f "$kotlin/TauriActivity.kt"
 
       - name: Android lint
         working-directory: src-tauri/gen/android
