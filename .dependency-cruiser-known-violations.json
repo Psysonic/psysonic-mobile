@@ -30975,5 +30975,22 @@
       "severity": "error",
       "name": "no-deep-cross-feature"
     }
+  },
+  {
+    "type": "dependency",
+    "from": "src/features/hub/hubClient.ts",
+    "to": "src/features/playback/store/engineState.ts",
+    "unresolvedTo": "@/features/playback/store/engineState",
+    "dependencyTypes": [
+      "aliased",
+      "aliased-tsconfig",
+      "aliased-tsconfig-paths",
+      "local",
+      "import"
+    ],
+    "rule": {
+      "severity": "error",
+      "name": "no-deep-cross-feature"
+    }
   }
 ]
