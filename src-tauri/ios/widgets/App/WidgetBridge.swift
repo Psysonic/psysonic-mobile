@@ -20,20 +20,20 @@ final class PsysonicWidgetCenter: NSObject {
         }
     }
 
-    /// Taps the system ran in the extension arrive as a Darwin notification.
+    /// Taps the system ran in the extension arrive as a Darwin notification. Taps that came
+    /// while the app was not running are picked up now.
     @objc static func observe() {
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDarwinNotifyCenter(),
             nil,
             { _, _, _, _, _ in
-                if let action = WidgetCommandDrop.take() {
-                    WidgetBridge.send(action)
-                }
+                WidgetCommandDrop.takeAll().forEach(WidgetBridge.send)
             },
             WidgetCommandDrop.notification as CFString,
             nil,
             .deliverImmediately
         )
+        WidgetCommandDrop.takeAll().forEach(WidgetBridge.send)
     }
 }
 
@@ -44,16 +44,20 @@ enum WidgetBridge {
 
     /// Hands the action to Rust, which keeps it until the web layer listens. A tap that
     /// started the app in the background has no web layer: it only runs with a window, so
-    /// the app comes to the front.
+    /// the app comes to the front. When it cannot come to the front, nothing would run the
+    /// action now, so it is not handed over at all; Rust also drops what waited too long.
     @available(iOS 17.0, *)
     static func run(_ action: String, intent: PsysonicCommandIntent) async throws {
-        send(action)
-        if psysonic_widget_web_ready() { return }
+        if psysonic_widget_web_ready() {
+            send(action)
+            return
+        }
         if #available(iOS 26.0, *) {
-            if intent.systemContext.currentMode.canContinueInForeground {
-                try await intent.continueInForeground(nil, alwaysConfirm: false)
-            }
+            guard intent.systemContext.currentMode.canContinueInForeground else { return }
+            send(action)
+            try await intent.continueInForeground(nil, alwaysConfirm: false)
         } else {
+            send(action)
             throw intent.needsToContinueInForegroundError()
         }
     }
