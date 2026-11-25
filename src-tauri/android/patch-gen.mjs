@@ -130,6 +130,8 @@ if (missing.length > 0) {
 // and Play then hides the app from every device without one: 1057023 lost 349 devices against
 // 1057011, every Android Auto (car) device and most Chromebooks among them. The camera is only
 // for that scan, so it is optional; the merged manifest is checked in the Gradle block below.
+// Its CAMERA permission alone makes Play imply a required rear camera (`android.hardware.camera`,
+// shown by `aapt2 dump badging` as uses-implied-feature), so that one is declared optional too.
 if (!manifest.includes('xmlns:tools=')) {
   manifest = manifest.replace(
     '<manifest xmlns:android="http://schemas.android.com/apk/res/android"',
@@ -138,7 +140,9 @@ if (!manifest.includes('xmlns:tools=')) {
   if (!manifest.includes('xmlns:tools=')) throw new Error('AndroidManifest.xml: no <manifest> root to add xmlns:tools to');
 }
 manifest = manifest.replace(internet, match => `${match}${manifestBlock('optional-features', '    ',
-  '    <uses-feature android:name="android.hardware.camera.any" android:required="false" tools:replace="android:required" />')}`);
+  ['android.hardware.camera.any', 'android.hardware.camera']
+    .map(name => `    <uses-feature android:name="${name}" android:required="false" tools:replace="android:required" />`)
+    .join('\n'))}`);
 addToApplication('media-service', `        <service
             android:name=".PsysonicMediaService"
             android:exported="false"
@@ -336,9 +340,15 @@ gradle = gradle.trimEnd() + gradleEol + tagged(`afterEvaluate {
     tasks.matching { it.name.startsWith("process") && it.name.endsWith("MainManifest") }.configureEach {
         doLast {
             outputs.files.asFileTree.matching { include("**/AndroidManifest.xml") }.forEach { merged ->
-                Regex("<uses-feature[^>]*>").findAll(merged.readText())
+                val text = merged.readText()
+                Regex("<uses-feature[^>]*>").findAll(text)
                     .filterNot { it.value.contains("android:required=\\"false\\"") }
                     .forEach { throw GradleException("\${merged}: \${it.value} is required, Play would hide the app from devices without it; make it optional in patch-gen.mjs") }
+                // A permission alone implies a required feature unless the feature is declared.
+                if (text.contains("android.permission.CAMERA") &&
+                    !Regex("<uses-feature[^>]*android.hardware.camera\\"[^>]*android:required=\\"false\\"").containsMatchIn(text)) {
+                    throw GradleException("\${merged}: CAMERA implies a required android.hardware.camera; declare it optional in patch-gen.mjs")
+                }
             }
         }
     }
