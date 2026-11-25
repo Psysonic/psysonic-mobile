@@ -328,14 +328,21 @@ object PsysonicMedia {
     runCatching { ContextCompat.getDrawable(ctx, R.drawable.ic_car_more)?.toBitmap(192, 192) }.getOrNull()
   }
 
-  /** A cover from the app's cache, scaled down for a car list row. */
+  /** A cover from the app's cache, at most `CAR_ICON_PX` wide for a car list row. */
   private fun carIcon(path: String): Bitmap? = runCatching {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(path, bounds)
     var sample = 1
-    while (bounds.outWidth / (sample * 2) >= 256) sample *= 2
-    BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+    while (bounds.outWidth / (sample * 2) >= CAR_ICON_PX) sample *= 2
+    // Sampling halves only: what it leaves (up to twice the size) is scaled down the rest.
+    val decoded = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+      ?: return@runCatching null
+    if (decoded.width <= CAR_ICON_PX) return@runCatching decoded
+    val height = (decoded.height * CAR_ICON_PX.toFloat() / decoded.width).toInt().coerceAtLeast(1)
+    Bitmap.createScaledBitmap(decoded, CAR_ICON_PX, height, true).also { if (it !== decoded) decoded.recycle() }
   }.getOrNull()
+
+  private const val CAR_ICON_PX = 256
 
   /**
    * The activity went to the background (screen off, another app). Wry pauses the web view

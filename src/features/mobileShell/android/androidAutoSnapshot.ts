@@ -169,7 +169,8 @@ export async function buildCarSnapshot(): Promise<CarSnapshot> {
   const playRows = new Set<string>();
   while (queue.length > 0 && Object.keys(snapshot.lists).length < MAX_LISTS) {
     const node = queue.shift()!;
-    const list = JSON.parse(await carListJson(node)) as CarListPayload;
+    // Covers on disk only: no downloads while the app goes to the background (mobile data).
+    const list = JSON.parse(await carListJson(node, { fetchCovers: false })) as CarListPayload;
     snapshot.lists[node] = list;
     for (const section of list.sections) {
       for (const row of section.items) {

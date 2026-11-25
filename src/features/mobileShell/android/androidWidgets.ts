@@ -8,6 +8,7 @@
 import { startupQueueSettled } from '@/features/playback';
 import { runWidgetCommand } from '@/features/mobileShell/widgets/widgetSnapshot';
 import { watchWidgetSnapshot } from '@/features/mobileShell/widgets/watchWidgetSnapshot';
+import { frontendDebugLog } from '@/lib/api/debugLog';
 import { IS_ANDROID } from '@/lib/util/platform';
 
 interface WidgetHost {
@@ -27,7 +28,8 @@ const widgetWindow = () => window as WidgetWindow;
 export function installAndroidWidgets(): () => void {
   if (!IS_ANDROID) return () => {};
   widgetWindow().__psyWidgetCommand = action => {
-    void runWidgetCommand(action).catch(() => {});
+    void runWidgetCommand(action)
+      .catch((e: unknown) => frontendDebugLog('widgets', JSON.stringify({ step: 'command', action, error: String(e) })));
   };
   const stop = watchWidgetSnapshot(snapshot => {
     widgetWindow().PsysonicAndroidWidgets?.update?.(JSON.stringify(snapshot));

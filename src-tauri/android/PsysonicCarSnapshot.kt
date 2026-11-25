@@ -20,21 +20,27 @@ object PsysonicCarSnapshot {
   private val writer = Executors.newSingleThreadExecutor()
 
   @Volatile private var cached: JSONObject? = null
+  /** Counts written copies: a read that began before a write must not cache the old file. */
+  @Volatile private var written = 0
 
   fun saveSnapshot(ctx: Context, json: String) {
     cached = null
-    write(ctx, SNAPSHOT_FILE, json)
+    write(ctx, SNAPSHOT_FILE, json) {
+      written++
+      cached = null
+    }
   }
 
-  fun saveResume(ctx: Context, json: String) = write(ctx, RESUME_FILE, json)
+  fun saveResume(ctx: Context, json: String) = write(ctx, RESUME_FILE, json) {}
 
-  private fun write(ctx: Context, name: String, json: String) {
+  private fun write(ctx: Context, name: String, json: String, done: () -> Unit) {
     val dir = ctx.applicationContext.filesDir
     writer.execute {
       runCatching {
         val tmp = File(dir, "$name.tmp")
         tmp.writeText(json)
         if (!tmp.renameTo(File(dir, name))) tmp.delete()
+        done()
       }.onFailure { android.util.Log.w("PsysonicAuto", "car copy: $name not written: $it") }
     }
   }
@@ -44,8 +50,11 @@ object PsysonicCarSnapshot {
     if (file.exists()) JSONObject(file.readText()) else null
   }.getOrNull()
 
-  private fun snapshot(ctx: Context): JSONObject? =
-    cached ?: read(ctx, SNAPSHOT_FILE)?.also { cached = it }
+  private fun snapshot(ctx: Context): JSONObject? {
+    cached?.let { return it }
+    val before = written
+    return read(ctx, SNAPSHOT_FILE)?.also { if (written == before) cached = it }
+  }
 
   fun exists(ctx: Context): Boolean = snapshot(ctx) != null
 
