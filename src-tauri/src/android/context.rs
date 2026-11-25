@@ -11,20 +11,32 @@ use std::time::{Duration, Instant};
 use jni::objects::JObject;
 use jni::JavaVM;
 
-const WAIT_LIMIT: Duration = Duration::from_secs(5);
+/// Usually there within milliseconds; a slow start is reported, then waited out longer.
+const SLOW_AFTER: Duration = Duration::from_secs(5);
+/// `run` goes on without a context after this. cpal's AAudio output needs the same context
+/// (tao sets both when the activity is created), so opening audio without it panics: on this
+/// thread (not the UI thread) a long wait is the better failure.
+const WAIT_LIMIT: Duration = Duration::from_secs(30);
 const POLL_STEP: Duration = Duration::from_millis(10);
 
 pub fn init() {
     let started = Instant::now();
+    let mut reported_slow = false;
     let ctx = loop {
         if let Some(ctx) = tao::platform::android::prelude::main_android_context() {
             break ctx;
         }
-        if started.elapsed() >= WAIT_LIMIT {
+        let waited = started.elapsed();
+        if waited >= WAIT_LIMIT {
             crate::app_eprintln!(
-                "[android] no activity context after 5 s, audio and HTTPS may fail"
+                "[android] no activity context after {} s, audio and HTTPS will fail",
+                WAIT_LIMIT.as_secs()
             );
             return;
+        }
+        if waited >= SLOW_AFTER && !reported_slow {
+            reported_slow = true;
+            crate::app_eprintln!("[android] activity context still missing after 5 s, waiting");
         }
         std::thread::sleep(POLL_STEP);
     };
