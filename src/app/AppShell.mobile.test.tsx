@@ -68,6 +68,30 @@ describe('AppShell in the touch shell build', () => {
     expect(container.querySelector('.mobile-mainstage-header')).toBeNull();
   });
 
+  it('leaves the long-press menu to text fields so Android can offer Paste', async () => {
+    const { container } = renderWithProviders(<AppShell />, { route: '/' });
+    await act(async () => { await Promise.resolve(); });
+    const host = container.querySelector('.main-content') as HTMLElement;
+    const longPress = (el: Element) => {
+      const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+      el.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    const field = (html: string) => {
+      const wrap = document.createElement('div');
+      wrap.innerHTML = html;
+      host.appendChild(wrap);
+      return wrap.firstElementChild as Element;
+    };
+
+    expect(longPress(field('<input type="password">'))).toBe(false);
+    expect(longPress(field('<textarea></textarea>'))).toBe(false);
+    expect(longPress(field('<div contenteditable="true"><b>note</b></div>').firstElementChild!)).toBe(false);
+    // Everything else still drops the WebView's menu: the shell opens its own.
+    expect(longPress(field('<span>Album</span>'))).toBe(true);
+    expect(longPress(field('<div contenteditable="false">x</div>'))).toBe(true);
+  });
+
   it('does not zoom the web view with a desktop interface scale', async () => {
     useFontStore.setState({ uiScale: 1.25 });
     setZoom.mockClear();

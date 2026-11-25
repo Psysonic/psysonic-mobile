@@ -17,3 +17,4 @@ export { default as MobileTouchContextMenu } from './components/MobileTouchConte
 export { default as MobileSwipeNavigation } from './components/MobileSwipeNavigation';
 export { default as MobilePlayer } from './components/MobilePlayer';
 export { default as MobileSelectionBar } from './components/MobileSelectionBar';
+export { preventShellContextMenu } from './utils/shellContextMenu';
