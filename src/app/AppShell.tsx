@@ -73,6 +73,7 @@ import {
   MobileSwipeNavigation,
   MobileSelectionBar,
   MobileTouchContextMenu,
+  preventShellContextMenu,
 } from '@/features/mobileShell/shell';
 import { useConnectionStatus } from '@/lib/hooks/useConnectionStatus';
 import { useIdlePlayQueuePull } from '@/app/hooks/useIdlePlayQueuePull';
@@ -328,7 +329,7 @@ export function AppShell() {
         data-mobile
         data-mobile-app
         data-mobile-player={isMobilePlayer || undefined}
-        onContextMenu={e => e.preventDefault()}
+        onContextMenu={preventShellContextMenu}
       >
         <main className="main-content">
           <div className="main-content-zoom">
