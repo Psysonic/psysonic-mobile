@@ -1,8 +1,11 @@
 //! Reopen CPAL/rodio output after system sleep/resume when the old stream can be silent
 //! while the reported default device name is unchanged (Windows WASAPI, Linux PipeWire/ALSA, etc.).
 
+#[cfg(not(target_os = "android"))]
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(not(target_os = "android"))]
+use std::time::Instant;
 
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -13,10 +16,14 @@ use super::engine::{
 };
 use super::stream_idle::{output_stream_is_needed, teardown_playback_sinks_for_idle_release};
 
+// Android coalesces its route losses itself (`output_lost_burst`).
+#[cfg(not(target_os = "android"))]
 static RESUME_REOPEN_DEBOUNCE: Mutex<Option<Instant>> = Mutex::new(None);
+#[cfg(not(target_os = "android"))]
 const DEBOUNCE: Duration = Duration::from_millis(900);
 
 /// Returns false if this resume should be ignored (coalesce bursts from the OS).
+#[cfg(not(target_os = "android"))]
 pub fn debounce_allow_resume_reopen() -> bool {
     let mut g = RESUME_REOPEN_DEBOUNCE.lock().unwrap();
     let now = Instant::now();

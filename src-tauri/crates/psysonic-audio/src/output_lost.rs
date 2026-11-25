@@ -3,14 +3,18 @@
 //! so the engine kept writing into the dead output: the car stayed silent while the app
 //! showed the song playing (car test 21.10.). The output's error callback reports the lost
 //! device here and the output is reopened on the new route, the way a system resume does.
+//! A burst of losses collapses into one reopen (`output_lost_burst`).
 
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
+use std::time::Instant;
 
 use tauri::AppHandle;
 
-use crate::power_resume::{debounce_allow_resume_reopen, reopen_audio_after_system_resume};
+use crate::output_lost_burst::{LossBurst, SETTLE};
+use crate::power_resume::reopen_audio_after_system_resume;
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
+static BURST: Mutex<LossBurst> = Mutex::new(LossBurst::new());
 
 pub(crate) fn register(app: AppHandle) {
     let _ = APP.set(app);
@@ -23,11 +27,13 @@ pub(crate) fn on_stream_error(error: rodio::cpal::StreamError) {
         return;
     }
     let Some(app) = APP.get() else { return };
-    if !debounce_allow_resume_reopen() {
+    if !BURST.lock().unwrap().on_loss(Instant::now()) {
         return;
     }
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(SETTLE).await;
+        BURST.lock().unwrap().reopen_started();
         reopen_audio_after_system_resume(&app).await;
     });
 }
