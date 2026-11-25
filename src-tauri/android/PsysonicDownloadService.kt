@@ -77,10 +77,20 @@ class PsysonicDownloadService : Service() {
   override fun onBind(intent: Intent?): IBinder? = null
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    ServiceCompat.startForeground(
-      this, NOTIFICATION_ID, build(this),
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0,
-    )
+    // Refused once Android 15's six hours of data sync a day are used up (or from the
+    // background): uncaught, that took the whole process down, music included. The download
+    // then goes on as a background app, as after `onTimeout`.
+    val started = runCatching {
+      ServiceCompat.startForeground(
+        this, NOTIFICATION_ID, build(this),
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0,
+      )
+    }
+    if (started.isFailure) {
+      android.util.Log.w("PsysonicDownload", "no foreground service for the download: ${started.exceptionOrNull()}")
+      stopSelf(startId)
+      return START_NOT_STICKY
+    }
     running = true
     instance = this
     return START_NOT_STICKY

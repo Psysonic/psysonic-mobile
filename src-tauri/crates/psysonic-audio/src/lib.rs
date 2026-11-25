@@ -28,6 +28,10 @@ mod linux_realtime;
 pub mod mix_commands;
 #[cfg(target_os = "android")]
 mod output_lost;
+// Built for host tests too: the burst logic is plain Rust.
+#[cfg(any(target_os = "android", test))]
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+mod output_lost_burst;
 mod play_input;
 pub mod playback_rate;
 #[cfg(target_os = "linux")]

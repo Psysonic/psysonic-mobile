@@ -14,6 +14,9 @@ declare global {
   }
 }
 
+/** How long a station start may take before the radio flag lets go (a stream that never came). */
+const RADIO_START_LIMIT_MS = 15000;
+
 const COMMAND_EVENTS: Record<string, string> = {
   play: 'media:play',
   pause: 'media:pause',
@@ -34,23 +37,49 @@ export function installAndroidMediaCommands(): () => void {
   // Radio plays through the web view's own audio element, which asks for audio focus
   // itself: the native side must not answer that loss of focus with a pause.
   let radio = usePlayerStore.getState().currentRadio !== null;
-  host()?.setRadio?.(radio);
-  const offRadio = usePlayerStore.subscribe((state, prev) => {
-    // Only a station change or a stop: other updates arrive while a station is starting.
-    if (state.currentRadio === prev.currentRadio && (state.isPlaying || !prev.isPlaying)) return;
-    const next = state.currentRadio !== null;
+  // A station is starting: its focus request comes before `currentRadio` is set.
+  let starting = false;
+  let startingTimer: ReturnType<typeof setTimeout> | undefined;
+  const endStarting = () => {
+    starting = false;
+    clearTimeout(startingTimer);
+  };
+  const report = (next: boolean) => {
     if (next === radio) return;
     radio = next;
     host()?.setRadio?.(radio);
+  };
+  host()?.setRadio?.(radio);
+  const offRadio = usePlayerStore.subscribe((state, prev) => {
+    if (state.currentRadio !== prev.currentRadio) endStarting();
+    // A song plays instead of the station that was starting (picked before the stream came,
+    // or the start failed): without this the song played without audio focus.
+    const songStarted = state.currentRadio === null && state.currentTrack !== null && state.isPlaying
+      && (state.currentTrack !== prev.currentTrack || !prev.isPlaying);
+    if (starting && songStarted) {
+      endStarting();
+      report(false);
+      return;
+    }
+    // Only a station change or a stop: other updates arrive while a station is starting.
+    if (state.currentRadio === prev.currentRadio && (state.isPlaying || !prev.isPlaying)) return;
+    endStarting();
+    report(state.currentRadio !== null);
   });
-  // A station is starting: its focus request comes before `currentRadio` is set.
   const onRadioStarting = () => {
-    radio = true;
-    host()?.setRadio?.(true);
+    endStarting();
+    starting = true;
+    // A start that never reaches the store (stream unreachable) lets go after a while.
+    startingTimer = setTimeout(() => {
+      starting = false;
+      report(usePlayerStore.getState().currentRadio !== null);
+    }, RADIO_START_LIMIT_MS);
+    report(true);
   };
   window.addEventListener(RADIO_STARTING_EVENT, onRadioStarting);
   return () => {
     offRadio();
+    endStarting();
     window.removeEventListener(RADIO_STARTING_EVENT, onRadioStarting);
     delete window.__psyAndroidMediaCommand;
   };

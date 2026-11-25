@@ -63,6 +63,8 @@ jobs:
           cargo check --release --workspace --target aarch64-linux-android --keep-going --message-format short 2>&1 | tee -a "$GITHUB_WORKSPACE/android-check.log"
           release=${PIPESTATUS[0]}
           echo "cargo exit code: dev=$dev release=$release" | tee -a "$GITHUB_WORKSPACE/android-check.log"
+          # The full error list first (summary, log artifact); the run fails in the last step.
+          echo "ANDROID_CHECK_FAILED=$(( dev != 0 || release != 0 ))" >> "$GITHUB_ENV"
 
       - name: Summary
         run: |
@@ -86,6 +88,12 @@ jobs:
         with:
           name: psysonic-android-check-log
           path: android-check.log
+
+      - name: Fail on compile errors
+        if: env.ANDROID_CHECK_FAILED != '0'
+        run: |
+          echo "::error::cargo check for Android failed (see the summary and the log artifact)"
+          exit 1
 
   apk:
     if: inputs.mode == 'apk'

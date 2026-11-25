@@ -147,6 +147,17 @@ object PsysonicWidgets {
     for (kind in kinds) {
       for (id in manager.getAppWidgetIds(ComponentName(app, kind.provider))) {
         runCatching { manager.updateAppWidget(id, views(app, manager, kind, id, current)) }
+          // Too much for one call (Android 12+ sends every size of a widget at once, each with
+          // its covers): once more with covers at half size rather than a frozen widget.
+          .recoverCatching {
+            android.util.Log.w("PsysonicWidgets", "widget $kind too large, covers at half size: $it")
+            coverScale = 0.5f
+            try {
+              manager.updateAppWidget(id, views(app, manager, kind, id, current))
+            } finally {
+              coverScale = 1f
+            }
+          }
           .onFailure { android.util.Log.w("PsysonicWidgets", "widget $kind not drawn: $it") }
       }
     }
@@ -384,8 +395,13 @@ object PsysonicWidgets {
 
   private val bitmaps = LruCache<String, Bitmap>(32)
 
+  /** Below 1 for a retry of an update that was too large (`redraw`); worker thread only. */
+  private var coverScale = 1f
+
   /** The cover as a square of `size` px with rounded corners, read from disk once. */
-  private fun bitmap(path: String?, size: Int, radius: Float): Bitmap? {
+  private fun bitmap(path: String?, fullSize: Int, fullRadius: Float): Bitmap? {
+    val size = (fullSize * coverScale).toInt().coerceAtLeast(1)
+    val radius = fullRadius * coverScale
     val file = path?.removePrefix("file://")?.takeIf { it.isNotEmpty() } ?: return null
     val key = "$file@$size@$radius"
     bitmaps.get(key)?.let { return it }

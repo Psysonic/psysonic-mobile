@@ -61,4 +61,8 @@ export { fetchGenreTracksForPlayback } from './utils/playback/genreBrowsePlaybac
 export { resolvePlaybackUrl } from './utils/playback/resolvePlaybackUrl';
 export { submitTrackScrobble } from './store/submitTrackScrobble';
 export { startupQueueSettled } from './store/startupQueueSettled';
+export { preparePausedRestoreOnStartup } from './store/pausedRestorePrepare';
+export { toQueueItemRefs } from './store/queueItemRef';
+export { setSeekFallbackVisualTarget } from './store/seekFallbackState';
+export { bindQueueServerId } from './utils/playback/playbackServer';
 export { drawCurve, EQ_CURVE_GEOMETRY } from './utils/audio/eqCurve';

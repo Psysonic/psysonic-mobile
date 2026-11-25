@@ -187,7 +187,7 @@ object PsysonicCarPlayer {
   /** The queue the app last played, from where it stopped. */
   fun resume(ctx: Context): Boolean {
     if (active) {
-      player?.play()
+      playOn()
       return true
     }
     val resume = PsysonicCarSnapshot.resume(ctx) ?: return false
@@ -239,11 +239,21 @@ object PsysonicCarPlayer {
     resume(ctx)
   }
 
+  /**
+   * Play the queue this player holds. After a failed last song the player sits idle, and
+   * `play()` alone does nothing there: it has to prepare again.
+   */
+  private fun playOn() {
+    val p = player ?: return
+    if (p.playbackState == Player.STATE_IDLE) p.prepare()
+    p.play()
+  }
+
   /** A button from the car, the lock screen or a headset. */
   fun command(ctx: Context, name: String, seconds: Double) {
     val p = player
     when (name) {
-      "play" -> if (active) p?.play() else resume(ctx)
+      "play" -> if (active) playOn() else resume(ctx)
       "pause", "stop" -> p?.pause()
       "next" -> if (p?.hasNextMediaItem() == true) p.seekToNextMediaItem()
       "prev" -> p?.let { if (it.currentPosition > 3000 || !it.hasPreviousMediaItem()) it.seekTo(0) else it.seekToPreviousMediaItem() }
@@ -257,6 +267,9 @@ object PsysonicCarPlayer {
    */
   fun handover(): String? {
     val p = player ?: return null
+    // The session shows paused until the app's player reports; it stayed on "playing" (wake
+    // lock, foreground service) when the app then played nothing.
+    PsysonicMedia.reportNative(false, p.currentPosition)
     if (queue.isEmpty() || radio) {
       release()
       return null

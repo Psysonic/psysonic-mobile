@@ -81,4 +81,28 @@ describe('androidBack', () => {
     stop();
     expect(window.__psyAndroidBack).toBeUndefined();
   });
+
+  it('passes a second back press on while the sheet it closed slides out', () => {
+    const back = vi.fn();
+    window.PsysonicAndroidShell = { setDarkBackground: vi.fn(), setOverlayOpen: vi.fn(), back };
+    const stop = installAndroidBack();
+    add('<div class="mobile-sheet" id="lower"></div>');
+    add('<div class="mobile-sheet" id="upper"></div>');
+    const seen: string[] = [];
+    for (const id of ['lower', 'upper']) {
+      document.getElementById(id)!.addEventListener('keydown', () => seen.push(id));
+    }
+
+    window.__psyAndroidBack!();
+    // `upper` is still in the page, sliding out: the next press closes the one below it.
+    window.__psyAndroidBack!();
+    expect(seen).toEqual(['upper', 'lower']);
+    expect(back).not.toHaveBeenCalled();
+
+    // Both on their way out: the press goes back as if none were open.
+    window.__psyAndroidBack!();
+    expect(back).toHaveBeenCalledTimes(1);
+    expect(seen).toEqual(['upper', 'lower']);
+    stop();
+  });
 });

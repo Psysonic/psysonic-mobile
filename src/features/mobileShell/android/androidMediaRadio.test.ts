@@ -5,6 +5,7 @@ vi.mock('@tauri-apps/api/event', () => ({ emit: vi.fn() }));
 
 import { usePlayerStore } from '@/features/playback/store/playerStore';
 import { RADIO_STARTING_EVENT } from '@/features/playback/store/radioPlayer';
+import { makeTrack } from '@/test/helpers/factories';
 import { resetAllStores } from '@/test/helpers/storeReset';
 import { installAndroidMediaCommands } from './androidMedia';
 
@@ -45,5 +46,29 @@ describe('radio state for the native media session', () => {
     window.dispatchEvent(new Event(RADIO_STARTING_EVENT));
     usePlayerStore.setState({ isPlaying: false, currentRadio: null });
     expect(setRadio).toHaveBeenLastCalledWith(false);
+  });
+
+  it('lets go of a starting station when a song is picked before the stream comes', () => {
+    window.dispatchEvent(new Event(RADIO_STARTING_EVENT));
+    expect(setRadio).toHaveBeenLastCalledWith(true);
+    usePlayerStore.setState({ currentTrack: makeTrack({ id: 's1' }), isPlaying: true });
+    expect(setRadio).toHaveBeenLastCalledWith(false);
+  });
+
+  it('lets go of a station start that fails while paused', () => {
+    vi.useFakeTimers();
+    try {
+      window.dispatchEvent(new Event(RADIO_STARTING_EVENT));
+      // The failed start writes the state it started from: nothing for the store to compare.
+      usePlayerStore.setState({ isPlaying: false, currentRadio: null });
+      expect(setRadio).toHaveBeenLastCalledWith(true);
+      vi.advanceTimersByTime(15000);
+      expect(setRadio).toHaveBeenLastCalledWith(false);
+      // A later song keeps the flag down.
+      usePlayerStore.setState({ currentTrack: makeTrack({ id: 's2' }), isPlaying: true });
+      expect(setRadio).toHaveBeenLastCalledWith(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

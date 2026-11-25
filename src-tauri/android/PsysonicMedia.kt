@@ -112,6 +112,26 @@ object PsysonicMedia {
     watchOutputs(activity.applicationContext)
   }
 
+  /**
+   * The activity and its web view are gone. Today the process ends with them (tao exits), but
+   * should it live on, buttons and car lists must not go to a dead page: without a web view
+   * the car player and the copy of the car's lists answer, as after a car start.
+   */
+  fun detach(view: WebView) {
+    if (webView !== view) return
+    webView = null
+    carListsReady = false
+    activity = null
+    main.removeCallbacks(reportOutput)
+    val ctx = appContext
+    val waiting = carRequests.values.toList()
+    carRequests.clear()
+    lateCarRequests.clear()
+    for ((node, reply) in waiting) {
+      reply(ctx?.let { PsysonicCarSnapshot.list(it, node) }?.let(::carItems) ?: emptyList())
+    }
+  }
+
   // ── The output music plays on (speaker, wired, a Bluetooth headset), for the EQ per
   // device (mobileEqDevice.ts). The audio engine only sees "the default output" here.
   private var outputsWatched = false
@@ -308,14 +328,21 @@ object PsysonicMedia {
     runCatching { ContextCompat.getDrawable(ctx, R.drawable.ic_car_more)?.toBitmap(192, 192) }.getOrNull()
   }
 
-  /** A cover from the app's cache, scaled down for a car list row. */
+  /** A cover from the app's cache, at most `CAR_ICON_PX` wide for a car list row. */
   private fun carIcon(path: String): Bitmap? = runCatching {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeFile(path, bounds)
     var sample = 1
-    while (bounds.outWidth / (sample * 2) >= 256) sample *= 2
-    BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+    while (bounds.outWidth / (sample * 2) >= CAR_ICON_PX) sample *= 2
+    // Sampling halves only: what it leaves (up to twice the size) is scaled down the rest.
+    val decoded = BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+      ?: return@runCatching null
+    if (decoded.width <= CAR_ICON_PX) return@runCatching decoded
+    val height = (decoded.height * CAR_ICON_PX.toFloat() / decoded.width).toInt().coerceAtLeast(1)
+    Bitmap.createScaledBitmap(decoded, CAR_ICON_PX, height, true).also { if (it !== decoded) decoded.recycle() }
   }.getOrNull()
+
+  private const val CAR_ICON_PX = 256
 
   /**
    * The activity went to the background (screen off, another app). Wry pauses the web view
@@ -623,26 +650,50 @@ object PsysonicMedia {
   private const val FOCUS_LOSS_GRACE_MS = 800L
 
   private fun setRadio(isRadio: Boolean) {
+    val wasRadio = radio
     radio = isRadio
+    // A song plays where a station was meant to start (or did play): it needs focus of its
+    // own, which `setPlayback` skipped while the radio flag was up.
+    if (wasRadio && !isRadio && playing) appContext?.let(::requestFocus)
+  }
+
+  /** A loss waiting out the grace below; focus coming back in time cancels it. */
+  private var pendingFocusLoss: Runnable? = null
+
+  private fun cancelFocusLoss() {
+    pendingFocusLoss?.let(main::removeCallbacks)
+    pendingFocusLoss = null
+  }
+
+  // The radio's own focus request can race the web view's report that a station is starting,
+  // so a loss waits a moment and is dropped if it was the radio, or if focus came back by then
+  // (a short sound); otherwise music stayed paused after a beep.
+  private fun loseFocus(transient: Boolean) {
+    cancelFocusLoss()
+    val loss = Runnable {
+      pendingFocusLoss = null
+      if (radio) return@Runnable
+      resumeOnFocusGain = transient && playing
+      if (playing) command("pause")
+    }
+    pendingFocusLoss = loss
+    main.postDelayed(loss, FOCUS_LOSS_GRACE_MS)
   }
 
   // ── Audio focus: a call or another player takes the speaker → pause (and resume after a call).
   private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
     if (radio) return@OnAudioFocusChangeListener
     when (change) {
-      // The radio's own focus request can race the web view's report that a station is
-      // starting, so a loss waits a moment and is dropped if it was the radio.
-      AudioManager.AUDIOFOCUS_LOSS -> main.postDelayed({
-        if (radio) return@postDelayed
+      AudioManager.AUDIOFOCUS_LOSS -> loseFocus(transient = false)
+      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> loseFocus(transient = true)
+      AudioManager.AUDIOFOCUS_GAIN -> {
+        if (pendingFocusLoss != null) {
+          cancelFocusLoss()
+        } else if (resumeOnFocusGain && !playing) {
+          command("play")
+        }
         resumeOnFocusGain = false
-        if (playing) command("pause")
-      }, FOCUS_LOSS_GRACE_MS)
-      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> main.postDelayed({
-        if (radio) return@postDelayed
-        resumeOnFocusGain = playing
-        if (playing) command("pause")
-      }, FOCUS_LOSS_GRACE_MS)
-      AudioManager.AUDIOFOCUS_GAIN -> { if (resumeOnFocusGain && !playing) command("play"); resumeOnFocusGain = false }
+      }
       // Ducking for navigation prompts is done by the system for media streams.
     }
   }
@@ -722,6 +773,24 @@ object PsysonicMedia {
     }
   }
 
+  /**
+   * One handover of the car player's queue: either the main thread starts it, or the waiting
+   * web view gives up first, never both.
+   */
+  private class HandoverClaim {
+    private val state = java.util.concurrent.atomic.AtomicInteger(PENDING)
+
+    fun start() = state.compareAndSet(PENDING, STARTED)
+
+    fun abandon() = state.compareAndSet(PENDING, ABANDONED)
+
+    private companion object {
+      const val PENDING = 0
+      const val STARTED = 1
+      const val ABANDONED = 2
+    }
+  }
+
   /** Called from the web view's JavaScript thread; everything else runs on the main thread. */
   private object JsBridge {
     @JavascriptInterface
@@ -793,12 +862,21 @@ object PsysonicMedia {
     fun takeCarPlayer(): String {
       val result = java.util.concurrent.atomic.AtomicReference("")
       val done = java.util.concurrent.CountDownLatch(1)
+      val handover = HandoverClaim()
       // The player lives on the main thread; this call comes on the web view's own.
       main.post {
-        runCatching { PsysonicCarPlayer.handover()?.let(result::set) }
+        if (handover.start()) {
+          runCatching { PsysonicCarPlayer.handover()?.let(result::set) }
+        }
         done.countDown()
       }
-      done.await(2, java.util.concurrent.TimeUnit.SECONDS)
+      // A busy main thread: the car player plays on rather than hand its queue to a caller
+      // that stopped waiting (the queue and the songs to scrobble were lost that way).
+      if (!done.await(2, java.util.concurrent.TimeUnit.SECONDS) && handover.abandon()) {
+        android.util.Log.w("PsysonicAuto", "car player handover timed out; the car player plays on")
+        return ""
+      }
+      done.await()
       if (result.get().isNotEmpty()) android.util.Log.i("PsysonicAuto", "car player hands its queue to the app")
       return result.get()
     }

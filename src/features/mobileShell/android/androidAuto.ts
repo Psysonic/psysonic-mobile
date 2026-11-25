@@ -75,10 +75,18 @@ function host(): AndroidAutoHost | undefined {
 /** Albums per cover row in Android Auto; the rest is behind "show all". */
 const AUTO_COVER_ROW_SIZE = 8;
 
-/** One car list as the native side reads it: sections of rows, covers as file paths. */
-export async function carListJson(node: string): Promise<string> {
+/**
+ * One car list as the native side reads it: sections of rows, covers as file paths.
+ * `fetchCovers: false` sends what is on disk and downloads nothing (the copy for a car start,
+ * built as the app goes to the background, possibly on mobile data).
+ */
+export async function carListJson(node: string, { fetchCovers = true }: { fetchCovers?: boolean } = {}): Promise<string> {
   const startedAt = performance.now();
-  const list: CarPlayList = await carPlayList(node).catch(() => ({ sections: [] }));
+  const list: CarPlayList = await carPlayList(node).catch((e: unknown) => {
+    frontendDebugLog('car', JSON.stringify({ step: 'list', node, error: String(e) }));
+    return { sections: [] };
+  });
+  if (!fetchCovers) list.refreshCovers = undefined;
   // The car gives up after 10 s (PsysonicMedia.requestCarList): how long each list takes.
   frontendDebugLog('car', JSON.stringify({
     step: 'list', node, ms: Math.round(performance.now() - startedAt),
@@ -119,11 +127,14 @@ export async function carListJson(node: string): Promise<string> {
 export function installAndroidAuto(): () => void {
   if (!IS_ANDROID) return () => {};
   window.__psyAutoList = (id, node) => {
-    void carListJson(node).then(json => host()?.carListResult(id, json));
+    void carListJson(node)
+      .then(json => host()?.carListResult(id, json))
+      .catch((e: unknown) => frontendDebugLog('car', JSON.stringify({ step: 'list', node, error: String(e) })));
   };
   window.__psyAutoPlay = node => { void carPlayPlay(node); };
   window.__psyAutoSearch = request => {
-    void playSiriRequest(autoSearchToSiri(request)).catch(() => {});
+    void playSiriRequest(autoSearchToSiri(request))
+      .catch((e: unknown) => frontendDebugLog('car', JSON.stringify({ step: 'search', error: String(e) })));
   };
   // The player's shuffle, repeat, favourite and infinite queue buttons, as in CarPlay.
   window.__psyAutoCommand = action => carPlayCommand(action);
