@@ -15,6 +15,11 @@
 //! silence. Pressing play then asks for the session again (`ios-audio:reactivate`), as Apple
 //! expects an app to do.
 //!
+//! When the media server restarts (`AVAudioSessionMediaServicesWereResetNotification`), every
+//! audio object of the app is gone, the session's category included. Apple's guidance
+//! (QA1749) is to set the session up again and recreate the audio objects, so the category is
+//! set again, the session activated and the engine's output reopened.
+//!
 //! The web layer also learns which output plays (`ios-audio:output`, answered again on
 //! `ios-audio:output-request`), to keep the EQ per device.
 
@@ -25,7 +30,8 @@ use block2::RcBlock;
 use objc2_avf_audio::{
     AVAudioSession, AVAudioSessionCategoryPlayback, AVAudioSessionInterruptionNotification,
     AVAudioSessionInterruptionOptionKey, AVAudioSessionInterruptionTypeKey,
-    AVAudioSessionPortBluetoothA2DP, AVAudioSessionPortBluetoothHFP, AVAudioSessionPortBluetoothLE,
+    AVAudioSessionMediaServicesWereResetNotification, AVAudioSessionPortBluetoothA2DP,
+    AVAudioSessionPortBluetoothHFP, AVAudioSessionPortBluetoothLE,
     AVAudioSessionPortBuiltInReceiver, AVAudioSessionPortBuiltInSpeaker,
     AVAudioSessionPortCarAudio, AVAudioSessionPortHeadphones, AVAudioSessionPortLineOut,
     AVAudioSessionPortUSBAudio, AVAudioSessionRouteChangeNotification,
@@ -97,6 +103,31 @@ pub(crate) fn car_connected(app: &AppHandle) {
         if crate::audio::debounce_allow_resume_reopen() {
             crate::audio::reopen_audio_after_system_resume(&app).await;
         }
+    });
+}
+
+/// The media server restarted: the old output stream is dead and the session lost its
+/// category. Set it up again and reopen the output on the current route. Not debounced: a
+/// reopen a moment earlier ran against the dead server.
+fn media_services_reset(app: &AppHandle) {
+    SESSION_ACTIVE.store(false, Ordering::Relaxed);
+    let active = activate_playback();
+    crate::app_eprintln!(
+        "[audio] iOS media services were reset: session active={} outputs={}",
+        active,
+        current_outputs()
+    );
+    let _ = app.emit("ios-audio:output", current_output());
+    if !active {
+        // Keeps trying and reopens once the session is through.
+        retry_activation(app);
+        return;
+    }
+    // Stamp the debounce so a route change right after does not reopen a second time.
+    let _ = crate::audio::debounce_allow_resume_reopen();
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        crate::audio::reopen_audio_after_system_resume(&app).await;
     });
 }
 
@@ -210,6 +241,12 @@ pub(crate) fn observe_interruptions(app: &AppHandle) {
             }
         });
 
+    let reset_app = app.clone();
+    let on_media_services_reset: RcBlock<dyn Fn(NonNull<NSNotification>)> =
+        RcBlock::new(move |_note: NonNull<NSNotification>| {
+            media_services_reset(&reset_app);
+        });
+
     // SAFETY: the names are framework constants; no object filter and no queue
     // (the blocks run on the posting thread and only emit events).
     let observers = unsafe {
@@ -225,6 +262,12 @@ pub(crate) fn observe_interruptions(app: &AppHandle) {
                 None,
                 None,
                 &on_route_change,
+            ),
+            center.addObserverForName_object_queue_usingBlock(
+                AVAudioSessionMediaServicesWereResetNotification,
+                None,
+                None,
+                &on_media_services_reset,
             ),
         )
     };
