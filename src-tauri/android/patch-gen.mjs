@@ -126,6 +126,19 @@ if (missing.length > 0) {
   const lines = missing.map(p => `    <uses-permission android:name="${p}" />`).join('\n');
   manifest = manifest.replace(internet, match => `${match}${manifestBlock('permissions', '    ', lines)}`);
 }
+// The hub's QR scan (tauri-plugin-barcode-scanner) declares the camera as a required feature,
+// and Play then hides the app from every device without one: 1057023 lost 349 devices against
+// 1057011, every Android Auto (car) device and most Chromebooks among them. The camera is only
+// for that scan, so it is optional; the merged manifest is checked in the Gradle block below.
+if (!manifest.includes('xmlns:tools=')) {
+  manifest = manifest.replace(
+    '<manifest xmlns:android="http://schemas.android.com/apk/res/android"',
+    '<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"',
+  );
+  if (!manifest.includes('xmlns:tools=')) throw new Error('AndroidManifest.xml: no <manifest> root to add xmlns:tools to');
+}
+manifest = manifest.replace(internet, match => `${match}${manifestBlock('optional-features', '    ',
+  '    <uses-feature android:name="android.hardware.camera.any" android:required="false" tools:replace="android:required" />')}`);
 addToApplication('media-service', `        <service
             android:name=".PsysonicMediaService"
             android:exported="false"
@@ -316,5 +329,19 @@ ${indent}    applicationIdSuffix = ".beta"
 ${indent}    manifestPlaceholders["appLabel"] = "Psysonic Beta"
 ${indent}    manifestPlaceholders["activityLabel"] = "Psysonic Beta"
 ${indent}}`)}`);
+// A library that declares a hardware feature as required takes the app away from every device
+// without it on Play (the camera of the QR scan, see the manifest above). The merged manifest
+// may only carry optional features; anything else stops the build.
+gradle = gradle.trimEnd() + gradleEol + tagged(`afterEvaluate {
+    tasks.matching { it.name.startsWith("process") && it.name.endsWith("MainManifest") }.configureEach {
+        doLast {
+            outputs.files.asFileTree.matching { include("**/AndroidManifest.xml") }.forEach { merged ->
+                Regex("<uses-feature[^>]*>").findAll(merged.readText())
+                    .filterNot { it.value.contains("android:required=\\"false\\"") }
+                    .forEach { throw GradleException("\${merged}: \${it.value} is required, Play would hide the app from devices without it; make it optional in patch-gen.mjs") }
+            }
+        }
+    }
+}`);
 writeFileSync(gradleFile, gradle);
-console.log(`[patch-gen] gradle: dependencies (verifier ${verifier.version}), signing, lint baseline, beta build`);
+console.log(`[patch-gen] gradle: dependencies (verifier ${verifier.version}), signing, lint baseline, beta build, optional features check`);

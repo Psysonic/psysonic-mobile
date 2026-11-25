@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { QrCode, X } from 'lucide-react';
 import { showToast } from '@/lib/dom/toast';
-import { cancelHubScan, ensureCameraPermission, HUB_SCANNING_ATTR, scanHubQr } from './scanHubQr';
+import { cancelHubScan, deviceHasCamera, ensureCameraPermission, HUB_SCANNING_ATTR, scanHubQr } from './scanHubQr';
 
 /**
  * Full-screen frame over the camera while a scan runs: the page itself is hidden and
@@ -70,6 +70,9 @@ export function HubQrScanButton() {
       setBusy(false);
     }
   };
+
+  // No camera: address and token are typed in, as on the desktop.
+  if (!deviceHasCamera()) return null;
 
   return (
     <div className="mobile-hub-qr">
