@@ -11,6 +11,8 @@ interface AndroidShellHost {
   setDarkBackground(dark: boolean): void;
   /** See `androidNetwork.ts`. */
   isMetered?(): boolean;
+  /** Whether the device has any camera (`hub/scanHubQr.ts`). Older app builds lack it. */
+  hasCamera?(): boolean;
   /** See `mobileShell/utils/landscape.ts`. */
   allowLandscape?(allowed: boolean): void;
   /** See `androidBack.ts`. */

@@ -6,6 +6,14 @@ export type HubScanResult = 'connected' | 'invalid' | 'no-camera' | 'cancelled';
 /** Set on `<html>` while the camera runs behind the (then transparent) web view. */
 export const HUB_SCANNING_ATTR = 'data-hub-scanning';
 
+/**
+ * False on an Android device without any camera (the manifest lists the camera as optional,
+ * so Play offers the app there too). iOS and older Android builds report nothing: true.
+ */
+export function deviceHasCamera(): boolean {
+  return window.PsysonicAndroidShell?.hasCamera?.() !== false;
+}
+
 /** Camera permission, asked for when not granted yet. */
 export async function ensureCameraPermission(): Promise<boolean> {
   const scanner = await import('@tauri-apps/plugin-barcode-scanner');

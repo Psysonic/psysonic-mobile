@@ -4,6 +4,7 @@ package dev.psysonic.player
 
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.Network
@@ -122,6 +123,11 @@ class MainActivity : TauriActivity() {
     @JavascriptInterface
     fun isMetered(): Boolean =
       activity.getSystemService(ConnectivityManager::class.java)?.isActiveNetworkMetered ?: false
+
+    /** The camera is optional in the manifest (patch-gen.mjs): the hub's QR scan asks first. */
+    @JavascriptInterface
+    fun hasCamera(): Boolean =
+      activity.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
   }
 
   private var shellWebView: WebView? = null
