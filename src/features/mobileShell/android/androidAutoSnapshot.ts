@@ -10,7 +10,6 @@
  * then the app takes over the car player's queue and position (`takeCarPlayer`), once its own
  * startup queue restore is through (it would replace the queue otherwise).
  */
-import { emit } from '@tauri-apps/api/event';
 import {
   carPlayFavoriteTracks,
   carPlayOfflineTracks,
@@ -21,11 +20,17 @@ import {
 import { carListJson } from '@/features/mobileShell/android/androidAuto';
 import { usePlayerStore, resolveQueueTrack } from '@/features/playback';
 import {
+  bindQueueServerId,
   playbackCacheKeyForTrack,
+  preparePausedRestoreOnStartup,
   resolvePlaybackUrl,
+  seedQueueResolver,
+  setSeekFallbackVisualTarget,
   startupQueueSettled,
   submitTrackScrobble,
+  toQueueItemRefs,
 } from '@/features/playback';
+import { useAuthStore } from '@/store/authStore';
 import { buildStreamUrlForServer } from '@/lib/api/subsonicStreamUrl';
 import { frontendDebugLog } from '@/lib/api/debugLog';
 import type { Track } from '@/lib/media/trackTypes';
@@ -238,7 +243,24 @@ export function applyCarHandover(handover: CarHandover): void {
   }
   const target = handover.tracks[handover.index];
   if (!target) return;
-  usePlayerStore.getState().playTrack(target, handover.tracks, true, false, handover.index);
+  const atSeconds = handover.positionSecs > 1 ? handover.positionSecs : 0;
+  const player = usePlayerStore.getState();
+  const serverId = target.serverId ?? useAuthStore.getState().activeServerId;
+  const oneServer = !!serverId && handover.tracks.every(track => (track.serverId ?? serverId) === serverId);
+  if (!handover.playing && !player.isPlaying && oneServer) {
+    // Paused in the car: load the queue paused at its spot, as a paused startup restore
+    // does; playing it to pause it after was heard from 0:00 for a moment.
+    seedQueueResolver(serverId, handover.tracks);
+    bindQueueServerId(serverId);
+    const queueItems = toQueueItemRefs(serverId, handover.tracks);
+    usePlayerStore.setState({ queueItems, queueIndex: handover.index, currentTrack: target, currentTime: atSeconds });
+    preparePausedRestoreOnStartup(target, queueItems, handover.index, atSeconds);
+    return;
+  }
+  // The start position rides on the seek target, which `playTrack` starts the track at.
+  setSeekFallbackVisualTarget(atSeconds > 0 ? { trackId: target.id, seconds: atSeconds, setAtMs: Date.now() } : null);
+  player.playTrack(target, handover.tracks, true, false, handover.index);
+  if (handover.playing) return;
   const startedAt = Date.now();
   const off = usePlayerStore.subscribe(state => {
     if (Date.now() - startedAt > HANDOVER_START_TIMEOUT_MS) {
@@ -247,8 +269,7 @@ export function applyCarHandover(handover: CarHandover): void {
     }
     if (!state.isPlaying || state.currentTrack?.id !== target.id) return;
     off();
-    if (handover.positionSecs > 1) void emit('media:seek-absolute', handover.positionSecs);
-    if (!handover.playing) state.pause();
+    state.pause();
   });
 }
 

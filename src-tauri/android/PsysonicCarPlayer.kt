@@ -257,6 +257,9 @@ object PsysonicCarPlayer {
    */
   fun handover(): String? {
     val p = player ?: return null
+    // The session shows paused until the app's player reports; it stayed on "playing" (wake
+    // lock, foreground service) when the app then played nothing.
+    PsysonicMedia.reportNative(false, p.currentPosition)
     if (queue.isEmpty() || radio) {
       release()
       return null

@@ -766,6 +766,24 @@ object PsysonicMedia {
     }
   }
 
+  /**
+   * One handover of the car player's queue: either the main thread starts it, or the waiting
+   * web view gives up first, never both.
+   */
+  private class HandoverClaim {
+    private val state = java.util.concurrent.atomic.AtomicInteger(PENDING)
+
+    fun start() = state.compareAndSet(PENDING, STARTED)
+
+    fun abandon() = state.compareAndSet(PENDING, ABANDONED)
+
+    private companion object {
+      const val PENDING = 0
+      const val STARTED = 1
+      const val ABANDONED = 2
+    }
+  }
+
   /** Called from the web view's JavaScript thread; everything else runs on the main thread. */
   private object JsBridge {
     @JavascriptInterface
@@ -837,12 +855,21 @@ object PsysonicMedia {
     fun takeCarPlayer(): String {
       val result = java.util.concurrent.atomic.AtomicReference("")
       val done = java.util.concurrent.CountDownLatch(1)
+      val handover = HandoverClaim()
       // The player lives on the main thread; this call comes on the web view's own.
       main.post {
-        runCatching { PsysonicCarPlayer.handover()?.let(result::set) }
+        if (handover.start()) {
+          runCatching { PsysonicCarPlayer.handover()?.let(result::set) }
+        }
         done.countDown()
       }
-      done.await(2, java.util.concurrent.TimeUnit.SECONDS)
+      // A busy main thread: the car player plays on rather than hand its queue to a caller
+      // that stopped waiting (the queue and the songs to scrobble were lost that way).
+      if (!done.await(2, java.util.concurrent.TimeUnit.SECONDS) && handover.abandon()) {
+        android.util.Log.w("PsysonicAuto", "car player handover timed out; the car player plays on")
+        return ""
+      }
+      done.await()
       if (result.get().isNotEmpty()) android.util.Log.i("PsysonicAuto", "car player hands its queue to the app")
       return result.get()
     }
