@@ -54,11 +54,11 @@ describe('carListJson cover follow-up', () => {
     delete (window as unknown as { PsysonicAndroidMedia?: unknown }).PsysonicAndroidMedia;
   });
 
-  const listWithRefresh = (downloaded: boolean) => {
+  const listWithRefresh = (downloaded: boolean, updates: CarPlayCoverUpdate[] = [{ section: 0, row: 70, image: '/c/p70.jpg' }]) => {
     vi.mocked(carPlayList).mockResolvedValueOnce({
       sections: [{ items: [{ node: 'playlist|srv|p1', title: 'Mix', browse: true }] }],
       refreshCovers: async (onImages: (updates: CarPlayCoverUpdate[], downloaded: boolean) => void) => {
-        onImages([{ section: 0, row: 70, image: '/c/p70.jpg' }], downloaded);
+        if (updates.length > 0) onImages(updates, downloaded);
       },
     });
   };
@@ -71,10 +71,19 @@ describe('carListJson cover follow-up', () => {
     await vi.waitFor(() => expect(carListsChanged).toHaveBeenCalledWith(JSON.stringify(['playlists'])));
   });
 
-  it('does not reload the list for covers that were already on disk (the reload would loop)', async () => {
+  it('also reloads for covers of rows past the first ones that were already on disk', async () => {
+    // Rows past 60 only get their covers in the follow-up; without a reload they never showed.
     const carListsChanged = vi.fn();
     (window as unknown as { PsysonicAndroidMedia: unknown }).PsysonicAndroidMedia = { carListsChanged };
     listWithRefresh(false);
+    await carListJson('playlists');
+    await vi.waitFor(() => expect(carListsChanged).toHaveBeenCalledWith(JSON.stringify(['playlists'])));
+  });
+
+  it('does not reload when the follow-up reports nothing new (the reload would loop)', async () => {
+    const carListsChanged = vi.fn();
+    (window as unknown as { PsysonicAndroidMedia: unknown }).PsysonicAndroidMedia = { carListsChanged };
+    listWithRefresh(false, []);
     await carListJson('playlists');
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(carListsChanged).not.toHaveBeenCalled();

@@ -19,7 +19,7 @@ vi.mock('@/cover', () => ({
     artists.map(artist => ({ fetchCoverArtId: `ar-${artist.id}` })),
 }));
 
-import { attachCarPlayCovers } from './carplayCovers';
+import { attachCarPlayCovers, _resetCarPlayCoversForTest } from './carplayCovers';
 
 const row = (id: string, kind: 'album' | 'artist' = 'album') => ({
   cover: { kind, id, serverId: 'srv' },
@@ -29,6 +29,7 @@ describe('attachCarPlayCovers', () => {
   beforeEach(() => {
     covers.peek.mockReset();
     covers.ensure.mockClear();
+    _resetCarPlayCoversForTest();
   });
 
   it('puts covers already on disk straight onto the rows, without the version suffix', async () => {
@@ -100,5 +101,34 @@ describe('attachCarPlayCovers', () => {
     const reports: boolean[] = [];
     await refresh!((_chunk, downloaded) => reports.push(downloaded));
     expect(reports).toEqual([true]);
+  });
+  it('carries covers from a follow-up on the rows of the next answer, and reports them only once', async () => {
+    // Android Auto reloads a list for every follow-up report: without this it never saw covers
+    // past row 60, or reloaded the list forever.
+    covers.peek.mockImplementation(async (refs: Array<{ fetchCoverArtId: string }>) =>
+      Object.fromEntries(refs.map(ref => [`${ref.fetchCoverArtId}:256`, `/covers/${ref.fetchCoverArtId}/256.webp`])));
+    const build = () => [{ items: Array.from({ length: 100 }, (_, i) => row(String(i))) }];
+    const firstAnswer = build();
+    const refresh = await attachCarPlayCovers(firstAnswer);
+    expect(firstAnswer[0].items[70].image).toBeUndefined();
+    await refresh!(() => {});
+
+    const secondAnswer = build();
+    const again = await attachCarPlayCovers(secondAnswer);
+    expect(secondAnswer[0].items.every(item => item.image)).toBe(true);
+    expect(secondAnswer[0].items[70].image).toBe('/covers/al-70/256.webp');
+    expect(again).toBeNull();
+  });
+
+  it('remembers downloaded covers too', async () => {
+    covers.peek
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ 'al-a:256': '/covers/a/256.webp' });
+    const refresh = await attachCarPlayCovers([{ items: [row('a')] }]);
+    await refresh!(() => {});
+    covers.peek.mockResolvedValue({});
+    const next = [{ items: [row('a')] }];
+    expect(await attachCarPlayCovers(next)).toBeNull();
+    expect(next[0].items[0].image).toBe('/covers/a/256.webp');
   });
 });

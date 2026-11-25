@@ -23,6 +23,34 @@ const CARPLAY_COVER_ROWS = 200;
 const CARPLAY_COVER_ROWS_FIRST = 60;
 /** Missing covers download in chunks, so the first rows show theirs before the rest are in. */
 const COVER_CHUNK = 24;
+/** Covers remembered from follow-ups; the oldest go first. */
+const REMEMBERED_COVERS_MAX = 2000;
+
+/**
+ * Cover files that reached a list only in its follow-up (downloaded, or rows past the first 60),
+ * by the entity they show. The next answer with the same row carries them straight away: Android
+ * Auto shows new covers only by asking for the list again, and rows past the first 60 never had
+ * one there.
+ */
+const rememberedCovers = new Map<string, string>();
+
+function coverKey(cover: CarPlayCoverSource): string {
+  return [cover.kind, cover.serverId, cover.id, cover.coverArt ?? ''].join('|');
+}
+
+function rememberCover(cover: CarPlayCoverSource, image: string): void {
+  const key = coverKey(cover);
+  rememberedCovers.delete(key);
+  rememberedCovers.set(key, image);
+  if (rememberedCovers.size > REMEMBERED_COVERS_MAX) {
+    const oldest = rememberedCovers.keys().next().value;
+    if (oldest !== undefined) rememberedCovers.delete(oldest);
+  }
+}
+
+export function _resetCarPlayCoversForTest(): void {
+  rememberedCovers.clear();
+}
 
 /** The entity whose cover a row shows. */
 export interface CarPlayCoverSource {
@@ -90,9 +118,10 @@ export type CarPlayCoverRefresh = (
 ) => Promise<void>;
 
 /**
- * Sets `image` on rows whose cover is already on disk (no network), and returns a
- * follow-up that downloads the missing ones and reports them, or null when none
- * are missing.
+ * Sets `image` on rows whose cover is already on disk (no network) or came in a
+ * follow-up before, and returns a follow-up that downloads the missing ones and
+ * reports them, or null when none are missing. Each cover is reported once: a
+ * reported cover is on the row in every later answer.
  */
 export async function attachCarPlayCovers(
   sections: ReadonlyArray<{ items: CoverTarget[] }>,
@@ -102,10 +131,27 @@ export async function attachCarPlayCovers(
   sections.forEach((section, sectionIndex) => {
     section.items.slice(0, CARPLAY_COVER_ROWS).forEach((item, rowIndex) => {
       if (!item.cover) return;
+      const remembered = item.image ? undefined : rememberedCovers.get(coverKey(item.cover));
+      if (remembered) {
+        item.image = remembered;
+        return;
+      }
       (rowIndex < CARPLAY_COVER_ROWS_FIRST ? first : later)
         .push({ section: sectionIndex, row: rowIndex, cover: item.cover });
     });
   });
+  const report = (
+    onImages: Parameters<CarPlayCoverRefresh>[0],
+    found: Map<CoverRow, string>,
+    downloaded: boolean,
+  ) => {
+    if (found.size === 0) return;
+    for (const [row, image] of found) {
+      const cover = sections[row.section].items[row.row].cover;
+      if (cover) rememberCover(cover, image);
+    }
+    onImages([...found].map(([row, image]) => ({ section: row.section, row: row.row, image })), downloaded);
+  };
   const resolve = async (targets: typeof first): Promise<CoverRow[]> =>
     (await Promise.all(targets.map(target => refFor(target.cover)
       .then(ref => (ref ? { section: target.section, row: target.row, ref } : null))
@@ -123,18 +169,13 @@ export async function attachCarPlayCovers(
     if (later.length > 0) {
       const laterRows = await resolve(later);
       const laterOnDisk = await peekImages(laterRows);
-      if (laterOnDisk.size > 0) {
-        onImages([...laterOnDisk].map(([row, image]) => ({ section: row.section, row: row.row, image })), false);
-      }
+      report(onImages, laterOnDisk, false);
       missing.push(...laterRows.filter(row => !laterOnDisk.has(row)));
     }
     for (let start = 0; start < missing.length; start += COVER_CHUNK) {
       const chunk = missing.slice(start, start + COVER_CHUNK);
       await coverCacheEnsureBatch(chunk.map(row => row.ref), CARPLAY_COVER_TIER).catch(() => {});
-      const fetched = await peekImages(chunk);
-      if (fetched.size > 0) {
-        onImages([...fetched].map(([row, image]) => ({ section: row.section, row: row.row, image })), true);
-      }
+      report(onImages, await peekImages(chunk), true);
     }
   };
 }
