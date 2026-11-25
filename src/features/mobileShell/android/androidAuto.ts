@@ -84,15 +84,15 @@ export async function carListJson(node: string): Promise<string> {
     step: 'list', node, ms: Math.round(performance.now() - startedAt),
     rows: list.sections.reduce((sum, section) => sum + section.items.length, 0),
   }));
-  // Covers not on disk yet: once they are, the car asks for the list again and gets them
-  // (it showed rows without covers until the list was opened anew, car test 21.10.).
-  // Only a download counts: rows past the first 60 report covers already on disk on every
-  // request, and reloading for those asked for a long list about ten times a second.
+  // Covers that come after the list (downloads, and rows past the first 60): once they are in,
+  // the car asks for the list again and gets them (it showed rows without covers until the list
+  // was opened anew, car test 21.10.). The next answer carries every cover reported here
+  // (`carplayCovers` remembers them), so it reports nothing new and the reloading stops.
   if (list.refreshCovers) {
-    let fetched = false;
-    void list.refreshCovers((_updates, downloaded) => { if (downloaded) fetched = true; })
+    let reported = false;
+    void list.refreshCovers(updates => { if (updates.length > 0) reported = true; })
       .catch(() => {})
-      .then(() => { if (fetched) host()?.carListsChanged?.(JSON.stringify([node])); });
+      .then(() => { if (reported) host()?.carListsChanged?.(JSON.stringify([node])); });
   }
   return JSON.stringify({
     sections: list.sections.map(section => ({
