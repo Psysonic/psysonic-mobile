@@ -6,32 +6,54 @@
 //!
 //! The handler does no searching. It passes what Siri understood to the web layer
 //! (`siri:play`), which searches the library and plays; Siri is answered with success
-//! right away. A request that arrives before the web layer listens (cold start from the
-//! car) waits here and is sent when it reports `siri:ready`.
+//! once the request reached it. A request that arrives before the web layer listens (cold
+//! start from the car) waits here and is sent when it reports `siri:ready`; Siri's answer
+//! waits with it. Started by Siri in the background with no scene, the app never starts its
+//! web layer: if it has not reported ready after `ANSWER_WAIT`, Siri is told to continue in
+//! the app (`ContinueInApp`), which brings it to the front, instead of claiming success for
+//! music that does not play. A request that waited longer than `WAIT_LIMIT` is dropped, so
+//! it does not start the next time the app is opened, hours later. A page load (also the
+//! reload after the WebContent process died) means nobody listens until ready again.
 
 use std::cell::RefCell;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
-use block2::Block;
+use block2::{Block, RcBlock};
 use objc2::rc::{Allocated, Retained};
 use objc2::runtime::{AnyClass, AnyObject, Bool, NSObject, Sel};
 use objc2::{class, define_class, ffi, msg_send, sel, AnyThread, ClassType};
 use objc2_foundation::NSString;
+use tauri::webview::PageLoadEvent;
 use tauri::{AppHandle, Emitter, Listener};
 
+/// `INPlayMediaIntentResponseCodeContinueInApp` (Intents SDK, `INPlayMediaIntentResponse.h`).
+const RESPONSE_CONTINUE_IN_APP: isize = 2;
 /// `INPlayMediaIntentResponseCodeSuccess` (Intents SDK, `INPlayMediaIntentResponse.h`).
 const RESPONSE_SUCCESS: isize = 4;
+/// How long Siri's answer waits for the web layer before asking to continue in the app.
+const ANSWER_WAIT: Duration = Duration::from_secs(6);
+/// How long a request waits for the web layer at all.
+const WAIT_LIMIT: Duration = Duration::from_secs(120);
 /// `INVocabularyStringTypeMediaMusicArtistName` (Intents SDK, `INVocabulary.h`).
 const VOCABULARY_MUSIC_ARTIST: isize = 701;
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
 static WEB_READY: AtomicBool = AtomicBool::new(false);
-static WAITING: Mutex<Vec<PlayRequest>> = Mutex::new(Vec::new());
+/// Requests waiting for the web layer, with the time they came in.
+static WAITING: Mutex<Vec<(PlayRequest, Instant)>> = Mutex::new(Vec::new());
+static NEXT_ANSWER: AtomicU64 = AtomicU64::new(0);
+
+/// Siri's completion block, called with a response object.
+type Completion = RcBlock<dyn Fn(*mut AnyObject)>;
 
 thread_local! {
     /// The one handler object, created on first use (UIKit asks on the main queue).
     static HANDLER: RefCell<Option<Retained<MediaIntentHandler>>> = const { RefCell::new(None) };
+    /// Siri's answers still owed, by request; main thread only.
+    static ANSWERS: RefCell<HashMap<u64, Completion>> = RefCell::new(HashMap::new());
 }
 
 /// What Siri understood. `media_type` is `INMediaItemType`: 1 song, 2 album, 3 artist,
@@ -61,22 +83,69 @@ define_class!(
                 request.artist_name,
                 request.album_name
             );
-            deliver(request);
-            // SAFETY: plain Objective-C allocation of the response class (the Intents
-            // framework is linked); the completion block takes the response object.
-            unsafe {
-                let response: Allocated<AnyObject> =
-                    msg_send![class!(INPlayMediaIntentResponse), alloc];
-                let response: Retained<AnyObject> = msg_send![
-                    response,
-                    initWithCode: RESPONSE_SUCCESS,
-                    userActivity: std::ptr::null::<AnyObject>()
-                ];
-                completion.call((Retained::as_ptr(&response) as *mut AnyObject,));
+            if deliver(request) {
+                answer(completion, RESPONSE_SUCCESS);
+                return;
             }
+            // Waits for the web layer; Siri hears once it listens, or after `ANSWER_WAIT`.
+            let id = NEXT_ANSWER.fetch_add(1, Ordering::Relaxed);
+            ANSWERS.with(|answers| answers.borrow_mut().insert(id, completion.copy()));
+            // SAFETY: UIKit calls the handler on the main queue; the timer runs on its run loop.
+            unsafe {
+                after_on_main(ANSWER_WAIT, move || {
+                    answer_waiting(Some(id), RESPONSE_CONTINUE_IN_APP)
+                })
+            };
         }
     }
 );
+
+/// Answers Siri with a fresh `INPlayMediaIntentResponse` carrying `code`.
+fn answer(completion: &Block<dyn Fn(*mut AnyObject)>, code: isize) {
+    // SAFETY: plain Objective-C allocation of the response class (the Intents framework is
+    // linked); the completion block takes the response object.
+    unsafe {
+        let response: Allocated<AnyObject> = msg_send![class!(INPlayMediaIntentResponse), alloc];
+        let response: Retained<AnyObject> = msg_send![
+            response,
+            initWithCode: code,
+            userActivity: std::ptr::null::<AnyObject>()
+        ];
+        completion.call((Retained::as_ptr(&response) as *mut AnyObject,));
+    }
+}
+
+/// Answers the waiting request `id` (all of them for `None`), if still owed. Main thread.
+fn answer_waiting(id: Option<u64>, code: isize) {
+    let owed: Vec<Completion> = ANSWERS.with(|answers| {
+        let mut answers = answers.borrow_mut();
+        match id {
+            Some(id) => answers.remove(&id).into_iter().collect(),
+            None => answers.drain().map(|(_, completion)| completion).collect(),
+        }
+    });
+    for completion in owed {
+        if code != RESPONSE_SUCCESS {
+            crate::app_eprintln!("[siri] web layer not ready; asking to continue in the app");
+        }
+        answer(&completion, code);
+    }
+}
+
+/// Runs `then` on the main run loop after `delay`. Works before Tauri runs (no app handle).
+///
+/// # Safety
+/// Main thread.
+unsafe fn after_on_main(delay: Duration, then: impl Fn() + 'static) {
+    let block: RcBlock<dyn Fn(*mut AnyObject)> = RcBlock::new(move |_timer: *mut AnyObject| then());
+    // The run loop keeps the scheduled timer, and the timer its own copy of the block.
+    let _timer: *mut AnyObject = msg_send![
+        class!(NSTimer),
+        scheduledTimerWithTimeInterval: delay.as_secs_f64(),
+        repeats: Bool::NO,
+        block: &*block
+    ];
+}
 
 /// # Safety
 /// `intent` is a live `INPlayMediaIntent`.
@@ -109,16 +178,18 @@ unsafe fn text(value: *mut NSString) -> Option<String> {
     (!text.trim().is_empty()).then_some(text)
 }
 
-fn deliver(request: PlayRequest) {
+/// Sends the request to the web layer; `false` when it waits for it.
+fn deliver(request: PlayRequest) -> bool {
     if WEB_READY.load(Ordering::SeqCst) {
         if let Some(app) = APP.get() {
             let _ = app.emit("siri:play", request);
-            return;
+            return true;
         }
     }
     if let Ok(mut waiting) = WAITING.lock() {
-        waiting.push(request);
+        waiting.push((request, Instant::now()));
     }
+    false
 }
 
 /// The web layer reports `siri:ready` once it listens; requests made earlier follow.
@@ -138,6 +209,18 @@ pub(crate) fn listen(app: &AppHandle) {
         });
     });
 
+    // A page starting to load has no listener until it reports ready again.
+    let page_loads = tauri::plugin::Builder::<tauri::Wry, ()>::new("psysonic-siri-page")
+        .on_page_load(|_webview, payload| {
+            if payload.event() == PageLoadEvent::Started {
+                WEB_READY.store(false, Ordering::SeqCst);
+            }
+        })
+        .build();
+    if let Err(error) = app.plugin(page_loads) {
+        crate::app_eprintln!("[siri] page load watch not added: {error}");
+    }
+
     let ready = app.clone();
     app.listen_any("siri:ready", move |_| {
         WEB_READY.store(true, Ordering::SeqCst);
@@ -145,9 +228,15 @@ pub(crate) fn listen(app: &AppHandle) {
             .lock()
             .map(|mut waiting| std::mem::take(&mut *waiting))
             .unwrap_or_default();
-        for request in waiting {
+        let now = Instant::now();
+        for (request, at) in waiting {
+            if now.duration_since(at) > WAIT_LIMIT {
+                crate::app_eprintln!("[siri] dropped stale request");
+                continue;
+            }
             let _ = ready.emit("siri:play", request);
         }
+        let _ = ready.run_on_main_thread(|| answer_waiting(None, RESPONSE_SUCCESS));
     });
 }
 
