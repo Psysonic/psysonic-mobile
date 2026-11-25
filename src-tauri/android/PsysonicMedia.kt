@@ -112,6 +112,26 @@ object PsysonicMedia {
     watchOutputs(activity.applicationContext)
   }
 
+  /**
+   * The activity and its web view are gone. Today the process ends with them (tao exits), but
+   * should it live on, buttons and car lists must not go to a dead page: without a web view
+   * the car player and the copy of the car's lists answer, as after a car start.
+   */
+  fun detach(view: WebView) {
+    if (webView !== view) return
+    webView = null
+    carListsReady = false
+    activity = null
+    main.removeCallbacks(reportOutput)
+    val ctx = appContext
+    val waiting = carRequests.values.toList()
+    carRequests.clear()
+    lateCarRequests.clear()
+    for ((node, reply) in waiting) {
+      reply(ctx?.let { PsysonicCarSnapshot.list(it, node) }?.let(::carItems) ?: emptyList())
+    }
+  }
+
   // ── The output music plays on (speaker, wired, a Bluetooth headset), for the EQ per
   // device (mobileEqDevice.ts). The audio engine only sees "the default output" here.
   private var outputsWatched = false

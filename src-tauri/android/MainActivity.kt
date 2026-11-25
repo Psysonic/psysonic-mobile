@@ -63,7 +63,7 @@ class MainActivity : TauriActivity() {
    */
   private fun watchMeteredNetwork(webView: WebView) {
     val cm = getSystemService(ConnectivityManager::class.java) ?: return
-    cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+    val callback = object : ConnectivityManager.NetworkCallback() {
       override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
         val metered = !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
         webView.post {
@@ -73,8 +73,13 @@ class MainActivity : TauriActivity() {
           )
         }
       }
-    })
+    }
+    cm.registerDefaultNetworkCallback(callback)
+    networkCallback = callback
   }
+
+  /** Unregistered with the activity: the system would otherwise hold it and its web view. */
+  private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
   /**
    * The app draws behind the status and navigation bars: their icons follow the theme,
@@ -170,6 +175,11 @@ class MainActivity : TauriActivity() {
   /** The web view goes with the activity; widget taps then open the app again. */
   override fun onDestroy() {
     PsysonicWidgets.detach(shellWebView)
+    shellWebView?.let(PsysonicMedia::detach)
+    networkCallback?.let { callback ->
+      runCatching { getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(callback) }
+    }
+    networkCallback = null
     super.onDestroy()
   }
 
