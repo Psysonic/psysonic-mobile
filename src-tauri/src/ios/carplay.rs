@@ -31,6 +31,10 @@ use objc2::{class, define_class, ffi, msg_send, ClassType, MainThreadMarker, Mai
 use objc2_foundation::NSString;
 use tauri::{AppHandle, Emitter, Listener};
 
+#[path = "carplay_stack.rs"]
+mod stack;
+use stack::StackStep;
+
 /// Session role of a CarPlay scene (`CPTemplateApplicationSceneSessionRoleApplication`).
 pub(crate) const ROLE_CARPLAY: &str = "CPTemplateApplicationSceneSessionRoleApplication";
 
@@ -47,8 +51,6 @@ unsafe extern "C" {
     static CPMaximumNumberOfGridImages: usize;
 }
 
-/// Lists whose rows are kept for covers that arrive later; older ones are dropped.
-const MAX_SHOWN_LISTS: usize = 48;
 /// `MPShuffleTypeOff` / `MPShuffleTypeItems`.
 const SHUFFLE_OFF: isize = 0;
 const SHUFFLE_ITEMS: isize = 1;
@@ -67,10 +69,15 @@ thread_local! {
     /// Lists waiting for the web layer: request id → (node, template to fill).
     static PENDING: RefCell<HashMap<u64, (String, Retained<AnyObject>)>> = RefCell::new(HashMap::new());
     static NEXT_REQUEST: Cell<u64> = const { Cell::new(1) };
-    /// Rows of answered lists by request id, so late covers find their row.
+    /// Rows of answered lists by request id, so late covers find their row. Only lists still
+    /// on screen (a tab or a template on the stack) are kept.
     static SHOWN: RefCell<HashMap<u64, (Retained<AnyObject>, Vec<ShownSection>)>> = RefCell::new(HashMap::new());
     /// The tab bar's lists by node, so the web layer can have one refilled (`carplay:refresh`).
     static TABS: RefCell<Vec<(String, Retained<AnyObject>)>> = const { RefCell::new(Vec::new()) };
+    /// Lists pushed onto the stack, by node, so opening the same list again goes back to it.
+    static OPENED: RefCell<Vec<(String, Retained<AnyObject>)>> = const { RefCell::new(Vec::new()) };
+    /// The audio session was told about this car connection (`audio_session::car_connected`).
+    static CAR_AUDIO_STARTED: Cell<bool> = const { Cell::new(false) };
     /// What the now-playing buttons show, as last reported by the web layer.
     static STATE: RefCell<NowPlayingState> = RefCell::new(NowPlayingState::default());
     /// Observer for the now-playing template's up-next and album/artist buttons.
@@ -188,14 +195,14 @@ define_class!(
         #[unsafe(method(templateApplicationScene:didConnectInterfaceController:))]
         fn did_connect(&self, _scene: &AnyObject, controller: &AnyObject) {
             crate::app_eprintln!("[carplay] connected");
-            if let Some(app) = APP.get() {
-                crate::ios::audio_session::car_connected(app);
-                // The web layer keeps the EQ out while a car is connected (eqStore `carActive`).
-                let _ = app.emit("carplay:connection", true);
-            }
             let retained =
                 unsafe { Retained::retain(controller as *const AnyObject as *mut AnyObject) };
             INTERFACE_CONTROLLER.with(|slot| *slot.borrow_mut() = retained);
+            notify_car_connected();
+            if let Some(app) = APP.get() {
+                // The web layer keeps the EQ out while a car is connected (eqStore `carActive`).
+                let _ = app.emit("carplay:connection", true);
+            }
             // SAFETY: main thread (UIKit callback), controller is a live CPInterfaceController.
             unsafe {
                 setup_now_playing();
@@ -210,9 +217,11 @@ define_class!(
                 let _ = app.emit("carplay:connection", false);
             }
             INTERFACE_CONTROLLER.with(|slot| slot.borrow_mut().take());
+            CAR_AUDIO_STARTED.with(|started| started.set(false));
             PENDING.with(|pending| pending.borrow_mut().clear());
             SHOWN.with(|shown| shown.borrow_mut().clear());
             TABS.with(|tabs| tabs.borrow_mut().clear());
+            OPENED.with(|opened| opened.borrow_mut().clear());
         }
     }
 );
@@ -317,8 +326,28 @@ pub(crate) fn listen(app: &AppHandle) {
             }
         });
     });
-    // Requests made before the app handle existed (CarPlay connected first).
-    let _ = app.run_on_main_thread(resend_pending);
+    // Requests made before the app handle existed (CarPlay connected first), and the audio
+    // session, which the connection could not prepare without the handle.
+    let _ = app.run_on_main_thread(|| {
+        resend_pending();
+        notify_car_connected();
+    });
+}
+
+/// Prepares the audio session for the connected car, once per connection. On a cold start from
+/// the car the scene connects before `listen` has the app handle, so `listen` calls this again;
+/// without it the first song from the car could start in an inactive session.
+///
+/// Main thread.
+fn notify_car_connected() {
+    let Some(app) = APP.get() else { return };
+    if INTERFACE_CONTROLLER.with(|slot| slot.borrow().is_none()) {
+        return;
+    }
+    if CAR_AUDIO_STARTED.with(|started| started.replace(true)) {
+        return;
+    }
+    crate::ios::audio_session::car_connected(app);
 }
 
 fn resend_pending() {
@@ -356,7 +385,9 @@ fn refresh_tabs(nodes: &[String]) {
     }
 }
 
-/// Asks the web layer for `node`; the answer fills `template`.
+/// Asks the web layer for `node`; the answer fills `template`. A newer request for the same
+/// template replaces an older one still waiting: whichever answer came last used to win, so a
+/// slow Start list built before the queue was back could overwrite the one with the resume row.
 fn request_list(node: &str, template: Retained<AnyObject>) {
     let request_id = NEXT_REQUEST.with(|next| {
         let id = next.get();
@@ -364,9 +395,9 @@ fn request_list(node: &str, template: Retained<AnyObject>) {
         id
     });
     PENDING.with(|pending| {
-        pending
-            .borrow_mut()
-            .insert(request_id, (node.to_string(), template))
+        let mut pending = pending.borrow_mut();
+        pending.retain(|_, (_, waiting)| !same(waiting, &template));
+        pending.insert(request_id, (node.to_string(), template));
     });
     if let Some(app) = APP.get() {
         let _ = app.emit(
@@ -381,6 +412,132 @@ fn request_list(node: &str, template: Retained<AnyObject>) {
 
 fn ns(text: &str) -> Retained<NSString> {
     NSString::from_str(text)
+}
+
+/// The same Objective-C object.
+fn same(a: &AnyObject, b: &AnyObject) -> bool {
+    std::ptr::eq(a, b)
+}
+
+/// The templates on the controller's stack, root first.
+///
+/// # Safety
+/// Main thread; `controller` is a CPInterfaceController.
+unsafe fn stack_templates(controller: &AnyObject) -> Vec<Retained<AnyObject>> {
+    let templates: Option<Retained<AnyObject>> = msg_send![controller, templates];
+    let Some(templates) = templates else {
+        return Vec::new();
+    };
+    let count: usize = msg_send![&*templates, count];
+    (0..count)
+        .filter_map(|index| {
+            let template: Option<Retained<AnyObject>> =
+                msg_send![&*templates, objectAtIndex: index];
+            template
+        })
+        .collect()
+}
+
+/// Templates the car can show right now: the tabs' lists and everything on the stack.
+///
+/// # Safety
+/// Main thread.
+unsafe fn live_templates() -> Vec<Retained<AnyObject>> {
+    let mut live: Vec<Retained<AnyObject>> = TABS.with(|tabs| {
+        tabs.borrow()
+            .iter()
+            .map(|(_, template)| template.clone())
+            .collect()
+    });
+    if let Some(controller) = INTERFACE_CONTROLLER.with(|slot| slot.borrow().clone()) {
+        live.extend(stack_templates(&controller));
+    }
+    live
+}
+
+/// A completion block for the stack calls: logs a refused push or pop, and runs `then` after a
+/// successful one. `show_on_stack` keeps within CarPlay's rules, since a refusal can still
+/// arrive as an Objective-C exception, which aborts the app.
+fn stack_completion(
+    what: &'static str,
+    then: Option<Box<dyn Fn()>>,
+) -> RcBlock<dyn Fn(Bool, *mut AnyObject)> {
+    RcBlock::new(move |done: Bool, error: *mut AnyObject| {
+        if done.as_bool() {
+            if let Some(then) = &then {
+                then();
+            }
+            return;
+        }
+        let reason = if error.is_null() {
+            String::new()
+        } else {
+            // SAFETY: CarPlay hands an NSError; completions run on the main thread.
+            let text: Option<Retained<NSString>> =
+                unsafe { msg_send![error, localizedDescription] };
+            text.map(|text| text.to_string()).unwrap_or_default()
+        };
+        crate::app_eprintln!("[carplay] {what} refused: {reason}");
+    })
+}
+
+/// # Safety
+/// Main thread; `controller` is a CPInterfaceController.
+unsafe fn push_template(controller: &AnyObject, template: &AnyObject) {
+    let completion = stack_completion("push", None);
+    let () = msg_send![
+        controller,
+        pushTemplate: template,
+        animated: Bool::YES,
+        completion: &*completion
+    ];
+}
+
+/// Shows `template` within CarPlay's stack limits: goes back to it when it is on the stack
+/// already (`existing`), pushes it when there is room, and otherwise replaces the top of a
+/// full stack. See `carplay_stack.rs`.
+///
+/// # Safety
+/// Main thread; `controller` is a CPInterfaceController, `stack` its templates.
+unsafe fn show_on_stack(
+    controller: &Retained<AnyObject>,
+    template: &Retained<AnyObject>,
+    stack: &[Retained<AnyObject>],
+    existing: Option<usize>,
+) {
+    match stack::step(stack.len(), existing) {
+        StackStep::Stay => {}
+        StackStep::PopTo(index) => {
+            let completion = stack_completion("pop", None);
+            let () = msg_send![
+                &**controller,
+                popToTemplate: &*stack[index],
+                animated: Bool::YES,
+                completion: &*completion
+            ];
+        }
+        StackStep::Push => push_template(controller, template),
+        StackStep::PopToThenPush(index) => {
+            let Some(target) = stack.get(index) else {
+                return;
+            };
+            crate::app_eprintln!("[carplay] stack full: replacing its top");
+            let (next_controller, next) = (controller.clone(), template.clone());
+            let completion = stack_completion(
+                "pop",
+                // SAFETY: CarPlay calls completions on the main thread.
+                Some(Box::new(move || unsafe {
+                    push_template(&next_controller, &next)
+                })),
+            );
+            let () = msg_send![
+                &**controller,
+                popToTemplate: &**target,
+                animated: Bool::NO,
+                completion: &*completion
+            ];
+        }
+    }
 }
 
 /// SF Symbol for a row or tab symbol sent by the web layer.
@@ -471,15 +628,17 @@ unsafe fn apply_result(result: ListResult) {
     }
     let (sections, rows) = build_sections(&result.sections);
     let () = msg_send![&*template, updateSections: &*sections];
+    // Covers still on their way belong to lists on screen: the tabs (requested first, so an
+    // oldest-first eviction dropped them after ~48 lists) and the stack. An older answer for
+    // this template is replaced.
+    let live = live_templates();
     SHOWN.with(|shown| {
         let mut shown = shown.borrow_mut();
+        shown.retain(|_, (kept, _)| {
+            let kept: &AnyObject = kept;
+            !same(kept, &template) && live.iter().any(|live| same(live, kept))
+        });
         shown.insert(result.request_id, (template.clone(), rows));
-        while shown.len() > MAX_SHOWN_LISTS {
-            let Some(oldest) = shown.keys().min().copied() else {
-                break;
-            };
-            shown.remove(&oldest);
-        }
     });
     if result
         .sections
@@ -817,13 +976,25 @@ unsafe fn open_list(node: &str, title: &str) {
     let Some(controller) = INTERFACE_CONTROLLER.with(|slot| slot.borrow().clone()) else {
         return;
     };
+    let stack = stack_templates(&controller);
+    // The same list further down (album → artist → album): go back to it and refill it.
+    let existing = OPENED.with(|opened| {
+        let mut opened = opened.borrow_mut();
+        opened.retain(|(_, list)| stack.iter().any(|shown| same(shown, list)));
+        opened
+            .iter()
+            .find(|(opened_node, _)| opened_node == node)
+            .and_then(|(_, list)| stack.iter().position(|shown| same(shown, list)))
+    });
+    if let Some(index) = existing {
+        let list = stack[index].clone();
+        show_on_stack(&controller, &list, &stack, Some(index));
+        request_list(node, list);
+        return;
+    }
     let list = loading_list(title, "…");
-    let () = msg_send![
-        &*controller,
-        pushTemplate: &*list,
-        animated: Bool::YES,
-        completion: std::ptr::null::<Block<dyn Fn(Bool, *mut AnyObject)>>()
-    ];
+    show_on_stack(&controller, &list, &stack, None);
+    OPENED.with(|opened| opened.borrow_mut().push((node.to_string(), list.clone())));
     request_list(node, list);
 }
 
@@ -841,17 +1012,16 @@ unsafe fn play(node: &str) {
     let Some(controller) = INTERFACE_CONTROLLER.with(|slot| slot.borrow().clone()) else {
         return;
     };
-    let now_playing: *mut AnyObject = msg_send![class!(CPNowPlayingTemplate), sharedTemplate];
-    let top: *mut AnyObject = msg_send![&*controller, topTemplate];
-    if top == now_playing {
+    let now_playing: Option<Retained<AnyObject>> =
+        msg_send![class!(CPNowPlayingTemplate), sharedTemplate];
+    let Some(now_playing) = now_playing else {
         return;
-    }
-    let () = msg_send![
-        &*controller,
-        pushTemplate: now_playing,
-        animated: Bool::YES,
-        completion: std::ptr::null::<Block<dyn Fn(Bool, *mut AnyObject)>>()
-    ];
+    };
+    // Already on the stack under the list just tapped (up next → a song): go back to it;
+    // pushing the same template a second time raises.
+    let stack = stack_templates(&controller);
+    let existing = stack.iter().position(|shown| same(shown, &now_playing));
+    show_on_stack(&controller, &now_playing, &stack, existing);
 }
 
 fn send_command(action: &'static str) {
@@ -900,9 +1070,13 @@ unsafe fn ensure_mode_commands(center: *mut AnyObject) {
         return;
     }
     let shuffle_command: *mut AnyObject = msg_send![center, changeShuffleModeCommand];
+    // The event names the mode wanted ("shuffle on" from Siri): toggling instead turned an
+    // already shuffled queue off.
     let on_shuffle: RcBlock<dyn Fn(NonNull<AnyObject>) -> isize> =
-        RcBlock::new(|_event: NonNull<AnyObject>| {
-            press_mode("shuffle");
+        RcBlock::new(|event: NonNull<AnyObject>| {
+            // SAFETY: an MPChangeShuffleModeCommandEvent; handlers run on the main thread.
+            let wanted: isize = unsafe { msg_send![event.as_ref(), shuffleType] };
+            press_mode(ModePress::Shuffle(wanted != SHUFFLE_OFF));
             COMMAND_SUCCESS
         });
     let _target: *mut AnyObject = msg_send![shuffle_command, addTargetWithHandler: &*on_shuffle];
@@ -910,8 +1084,10 @@ unsafe fn ensure_mode_commands(center: *mut AnyObject) {
 
     let repeat_command: *mut AnyObject = msg_send![center, changeRepeatModeCommand];
     let on_repeat: RcBlock<dyn Fn(NonNull<AnyObject>) -> isize> =
-        RcBlock::new(|_event: NonNull<AnyObject>| {
-            press_mode("repeat");
+        RcBlock::new(|event: NonNull<AnyObject>| {
+            // SAFETY: an MPChangeRepeatModeCommandEvent; handlers run on the main thread.
+            let wanted: isize = unsafe { msg_send![event.as_ref(), repeatType] };
+            press_mode(ModePress::Repeat(requested_repeat(wanted)));
             COMMAND_SUCCESS
         });
     let _target: *mut AnyObject = msg_send![repeat_command, addTargetWithHandler: &*on_repeat];
@@ -966,21 +1142,53 @@ fn next_repeat(repeat: &str) -> &'static str {
     }
 }
 
+/// The web layer's repeat mode for an `MPRepeatType`.
+fn requested_repeat(repeat_type: isize) -> &'static str {
+    match repeat_type {
+        REPEAT_ONE => "one",
+        REPEAT_ALL => "all",
+        _ => "off",
+    }
+}
+
+/// A shuffle or repeat press: CarPlay's own buttons toggle, remote commands (Siri, other
+/// controls) name the mode they want.
+#[derive(Clone, Copy)]
+enum ModePress {
+    ToggleShuffle,
+    ToggleRepeat,
+    Shuffle(bool),
+    Repeat(&'static str),
+}
+
 /// A press on the shuffle or repeat button. CarPlay flips the button at once and then reads
 /// the remote command centre, which still held the old mode until the web layer answered:
 /// the button flashed on, off, on. Show the expected mode right away; the web layer's state
 /// confirms it, and if it leaves the mode alone (an Orbit guest, say) the real one returns.
 ///
 /// Main thread (CarPlay button and remote-command handlers).
-fn press_mode(action: &'static str) {
+fn press_mode(press: ModePress) {
     let state = STATE.with(|slot| slot.borrow().clone());
+    let (shuffle, repeat, action) = match press {
+        ModePress::ToggleShuffle => (!state.shuffle, state.repeat.as_str(), "shuffle"),
+        ModePress::ToggleRepeat => (state.shuffle, next_repeat(&state.repeat), "repeat"),
+        ModePress::Shuffle(on) => (
+            on,
+            state.repeat.as_str(),
+            if on { "shuffle-on" } else { "shuffle-off" },
+        ),
+        ModePress::Repeat(mode) => (
+            state.shuffle,
+            mode,
+            match mode {
+                "one" => "repeat-one",
+                "all" => "repeat-all",
+                _ => "repeat-off",
+            },
+        ),
+    };
     // SAFETY: the handlers run on the main thread.
-    unsafe {
-        match action {
-            "shuffle" => apply_modes(!state.shuffle, &state.repeat),
-            _ => apply_modes(state.shuffle, next_repeat(&state.repeat)),
-        }
-    }
+    unsafe { apply_modes(shuffle, repeat) };
     send_command(action);
     if let Some(app) = APP.get() {
         let app = app.clone();
@@ -1004,13 +1212,13 @@ unsafe fn rebuild_now_playing_buttons(starred: bool, infinite: bool) {
     let buttons = mutable_array();
 
     let on_shuffle: RcBlock<dyn Fn(NonNull<AnyObject>)> =
-        RcBlock::new(|_button: NonNull<AnyObject>| press_mode("shuffle"));
+        RcBlock::new(|_button: NonNull<AnyObject>| press_mode(ModePress::ToggleShuffle));
     let shuffle: Allocated<AnyObject> = msg_send![class!(CPNowPlayingShuffleButton), alloc];
     let shuffle: Retained<AnyObject> = msg_send![shuffle, initWithHandler: &*on_shuffle];
     let () = msg_send![&*buttons, addObject: &*shuffle];
 
     let on_repeat: RcBlock<dyn Fn(NonNull<AnyObject>)> =
-        RcBlock::new(|_button: NonNull<AnyObject>| press_mode("repeat"));
+        RcBlock::new(|_button: NonNull<AnyObject>| press_mode(ModePress::ToggleRepeat));
     let repeat: Allocated<AnyObject> = msg_send![class!(CPNowPlayingRepeatButton), alloc];
     let repeat: Retained<AnyObject> = msg_send![repeat, initWithHandler: &*on_repeat];
     let () = msg_send![&*buttons, addObject: &*repeat];
