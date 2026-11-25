@@ -25,6 +25,9 @@ class PsysonicAutoService : MediaBrowserServiceCompat() {
     /** `MediaConstants.DESCRIPTION_EXTRAS_VALUE_CONTENT_STYLE_LIST_ITEM`. */
     private const val STYLE_LIST = 1
 
+    /** Android Auto (also the Desktop Head Unit) and Android Automotive's media centre. */
+    private val CAR_CLIENTS = setOf("com.google.android.projection.gearhead", "com.android.car.media")
+
     /** The running service, while the car is connected. */
     private var current: PsysonicAutoService? = null
 
@@ -55,26 +58,39 @@ class PsysonicAutoService : MediaBrowserServiceCompat() {
     super.onCreate()
     current = this
     sessionToken = PsysonicMedia.sessionTokenFor(applicationContext)
-    PsysonicMedia.onCarConnected(true)
     // No opening the app from here: starting the activity from this service (Android allows
     // it with "display over other apps") made Play Protect block the APK as harmful (Honor,
     // 28.10.). With the app closed the car plays the copy the app left (PsysonicCarPlayer).
   }
 
+  /**
+   * A car browses (Android Auto, a car's own media centre). Other clients bind this service
+   * too (the system's media resumption, a watch); counted as a car, they turned the phone's
+   * EQ off and kept the web view awake.
+   */
+  private var carBrowsing = false
+
   override fun onDestroy() {
     if (current === this) current = null
-    PsysonicMedia.onCarConnected(false)
+    if (carBrowsing) PsysonicMedia.onCarConnected(false)
     super.onDestroy()
   }
 
   // Rows are lists unless a row asks for a grid (the Start tab's cover rows); the car only
   // honours such per-row hints when the root says it uses content styles.
-  override fun onGetRoot(clientPackageName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot =
-    BrowserRoot(ROOT, Bundle().apply {
+  override fun onGetRoot(clientPackageName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot {
+    val recent = rootHints?.getBoolean(BrowserRoot.EXTRA_RECENT) == true
+    android.util.Log.i("PsysonicAuto", "browser root for $clientPackageName${if (recent) " (recent)" else ""}")
+    if (!recent && clientPackageName in CAR_CLIENTS && !carBrowsing) {
+      carBrowsing = true
+      PsysonicMedia.onCarConnected(true)
+    }
+    return BrowserRoot(ROOT, Bundle().apply {
       putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true)
       putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", STYLE_LIST)
       putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", STYLE_LIST)
     })
+  }
 
   override fun onLoadChildren(parentId: String, result: Result<MutableList<MediaItem>>) {
     if (!PsysonicMedia.webReady()) {
