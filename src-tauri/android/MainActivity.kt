@@ -113,6 +113,12 @@ class MainActivity : TauriActivity() {
       activity.runOnUiThread { activity.setOverlayOpen(open) }
     }
 
+    /** See `backPastOverlays` and `mobileShell/android/androidBack.ts`. */
+    @JavascriptInterface
+    fun back() {
+      activity.runOnUiThread { activity.backPastOverlays() }
+    }
+
     @JavascriptInterface
     fun isMetered(): Boolean =
       activity.getSystemService(ConnectivityManager::class.java)?.isActiveNetworkMetered ?: false
@@ -135,6 +141,15 @@ class MainActivity : TauriActivity() {
     // stays ahead of wry's.
     closeOverlayOnBack.remove()
     if (open) onBackPressedDispatcher.addCallback(this, closeOverlayOnBack)
+  }
+
+  /**
+   * A back press reached the page while its overlays were already closing (a second press
+   * during a sheet's slide-out): it does what it does without an overlay instead of being lost.
+   */
+  fun backPastOverlays() {
+    closeOverlayOnBack.remove()
+    onBackPressedDispatcher.onBackPressed()
   }
 
   /**

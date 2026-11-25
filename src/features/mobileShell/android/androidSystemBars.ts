@@ -15,6 +15,8 @@ interface AndroidShellHost {
   allowLandscape?(allowed: boolean): void;
   /** See `androidBack.ts`. */
   setOverlayOpen?(open: boolean): void;
+  /** The back key as if no overlay were open (`androidBack.ts`). Older app builds lack it. */
+  back?(): void;
 }
 
 declare global {
