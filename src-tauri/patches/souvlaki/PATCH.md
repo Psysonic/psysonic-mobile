@@ -10,7 +10,14 @@ The local change adds optional `PlatformConfig::desktop_entry` and exports it as
 the read-only string `org.mpris.MediaPlayer2.DesktopEntry` in both Linux backends.
 `None` exports an empty string. Supply the case-sensitive installed desktop
 filename without `.desktop`; this is distinct from the display name and bus name.
-No player methods, metadata, event rates or non-Linux backends are changed.
+No player methods, metadata or event rates are changed.
+
+The iOS backend (`src/platform/macos/mod.rs`, `target_os = "ios"` only) frees the
+Objective-C objects it makes for every track change: they are autoreleased and drained
+by a pool around each call (before, strings, the cover data and the artwork leaked on
+every track change). A cover file that is gone no longer panics on the dispatch queue
+(no artwork instead), and seeking reads the public `positionTime` instead of the
+private `_positionTime` ivar. The macOS backend is unchanged.
 
 The regression test starts its own session with `dbus-run-session` and runs the
 real media-controls service in a child test process. It never uses the user bus

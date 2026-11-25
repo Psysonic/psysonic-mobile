@@ -2,7 +2,7 @@
 #![allow(non_upper_case_globals)]
 
 #[cfg(target_os = "ios")]
-use std::fs;
+use std::{ffi::c_void, fs};
 
 use std::{
     sync::{
@@ -90,7 +90,35 @@ extern "C" {
     static MPNowPlayingInfoPropertyElapsedPlaybackTime: id; // NSString
 }
 
+// iOS: Objective-C objects made here are autoreleased and freed by a pool around each call.
+// The calling thread may have no pool of its own, and objects owned with `alloc`/`init` and
+// never released leaked on every track change (the cover about 2.3 times over).
+#[cfg(target_os = "ios")]
+extern "C" {
+    fn objc_autoreleasePoolPush() -> *mut c_void;
+    fn objc_autoreleasePoolPop(pool: *mut c_void);
+}
+
+#[cfg(target_os = "ios")]
+struct AutoreleasePool(*mut c_void);
+
+#[cfg(target_os = "ios")]
+impl AutoreleasePool {
+    unsafe fn push() -> Self {
+        Self(objc_autoreleasePoolPush())
+    }
+}
+
+#[cfg(target_os = "ios")]
+impl Drop for AutoreleasePool {
+    fn drop(&mut self) {
+        unsafe { objc_autoreleasePoolPop(self.0) }
+    }
+}
+
 unsafe fn set_playback_status(playback: MediaPlayback) {
+    #[cfg(target_os = "ios")]
+    let _pool = AutoreleasePool::push();
     let media_center: id = msg_send!(class!(MPNowPlayingInfoCenter), defaultCenter);
     let state = match playback {
         MediaPlayback::Stopped => MPNowPlayingPlaybackStateStopped,
@@ -112,6 +140,8 @@ unsafe fn set_playback_status(playback: MediaPlayback) {
 static GLOBAL_METADATA_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
 unsafe fn set_playback_metadata(metadata: MediaMetadata) {
+    #[cfg(target_os = "ios")]
+    let _pool = AutoreleasePool::push();
     let prev_counter = GLOBAL_METADATA_COUNTER.fetch_add(1, Ordering::SeqCst);
     let media_center: id = msg_send!(class!(MPNowPlayingInfoCenter), defaultCenter);
     let now_playing: id = msg_send!(class!(NSMutableDictionary), dictionary);
@@ -140,6 +170,21 @@ unsafe fn set_playback_metadata(metadata: MediaMetadata) {
     let _: () = msg_send!(media_center, setNowPlayingInfo: now_playing);
 }
 
+#[cfg(target_os = "ios")]
+unsafe fn load_and_set_playback_artwork(url: String, for_counter: usize) {
+    let _pool = AutoreleasePool::push();
+    let (image, size) = load_image_from_url(&url);
+    // No cover (deleted since, unreadable): a nil artwork would throw in `setObject:forKey:`.
+    if image == nil {
+        return;
+    }
+    let artwork = mp_artwork(image, size);
+    if GLOBAL_METADATA_COUNTER.load(Ordering::SeqCst) == for_counter {
+        set_playback_artwork(artwork);
+    }
+}
+
+#[cfg(target_os = "macos")]
 unsafe fn load_and_set_playback_artwork(url: String, for_counter: usize) {
     let (image, size) = load_image_from_url(&url);
     let artwork = mp_artwork(image, size);
@@ -241,7 +286,7 @@ unsafe fn attach_command_handlers(handler: Arc<dyn Fn(MediaControlEvent)>) {
         let handler = handler.clone();
         // event of type MPChangePlaybackPositionCommandEvent
         move |event: id| -> NSInteger {
-            let position = *event.as_ref().unwrap().get_ivar::<f64>("_positionTime");
+            let position = position_time(event);
             (handler)(MediaControlEvent::SetPosition(MediaPosition(
                 Duration::from_secs_f64(position),
             )));
@@ -252,6 +297,18 @@ unsafe fn attach_command_handlers(handler: Arc<dyn Fn(MediaControlEvent)>) {
     let cmd: id = msg_send!(command_center, changePlaybackPositionCommand);
     let _: () = msg_send!(cmd, setEnabled: YES);
     let _: () = msg_send!(cmd, addTargetWithHandler: position_handler);
+}
+
+/// The requested position of an `MPChangePlaybackPositionCommandEvent`.
+#[cfg(target_os = "ios")]
+unsafe fn position_time(event: id) -> f64 {
+    // The public property, not the private ivar behind it.
+    msg_send!(event, positionTime)
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn position_time(event: id) -> f64 {
+    *event.as_ref().unwrap().get_ivar::<f64>("_positionTime")
 }
 
 unsafe fn detach_command_handlers() {
@@ -282,6 +339,13 @@ unsafe fn detach_command_handlers() {
     let _: () = msg_send!(cmd, removeTarget: nil);
 }
 
+#[cfg(target_os = "ios")]
+unsafe fn ns_string(value: &str) -> id {
+    let string = NSString::alloc(nil).init_str(value);
+    msg_send!(string, autorelease)
+}
+
+#[cfg(target_os = "macos")]
 unsafe fn ns_string(value: &str) -> id {
     NSString::alloc(nil).init_str(value)
 }
@@ -298,13 +362,14 @@ unsafe fn ns_url(value: &str) -> id {
 
 #[cfg(target_os = "ios")]
 unsafe fn load_image_from_url(url: &str) -> (id, CGSize) {
-    let image_data = fs::read(&url).unwrap();
-    let base64_data = base64::encode(image_data);
-    let base64_ns_string = ns_string(&base64_data);
-
-    let ns_data: id = msg_send!(class!(NSData), alloc);
-    let ns_data: id = msg_send!(ns_data, initWithBase64EncodedString: base64_ns_string
-                                          options: 0);
+    // Runs on a dispatch queue: a cover deleted since the metadata was set means no artwork,
+    // not a panic that cannot unwind.
+    let Ok(image_data) = fs::read(url) else {
+        return (nil, CGSize::new(0.0, 0.0));
+    };
+    // Copied straight into an autoreleased NSData (no base64 round trip).
+    let ns_data: id = msg_send!(class!(NSData), dataWithBytes: image_data.as_ptr() as *const c_void
+                                                       length: image_data.len() as NSUInteger);
     if ns_data == nil {
         return (nil, CGSize::new(0.0, 0.0));
     }
@@ -326,10 +391,10 @@ unsafe fn load_image_from_url(url: &str) -> (id, CGSize) {
 }
 
 #[cfg(target_os = "ios")]
-unsafe fn mp_artwork(image: id, bounds: CGSize) -> id {
+unsafe fn mp_artwork(image: id, _bounds: CGSize) -> id {
     let artwork: id = msg_send!(class!(MPMediaItemArtwork), alloc);
     let artwork: id = msg_send!(artwork, initWithImage: image);
-    artwork
+    msg_send!(artwork, autorelease)
 }
 
 #[cfg(target_os = "macos")]
