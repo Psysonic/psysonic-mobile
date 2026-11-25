@@ -643,26 +643,50 @@ object PsysonicMedia {
   private const val FOCUS_LOSS_GRACE_MS = 800L
 
   private fun setRadio(isRadio: Boolean) {
+    val wasRadio = radio
     radio = isRadio
+    // A song plays where a station was meant to start (or did play): it needs focus of its
+    // own, which `setPlayback` skipped while the radio flag was up.
+    if (wasRadio && !isRadio && playing) appContext?.let(::requestFocus)
+  }
+
+  /** A loss waiting out the grace below; focus coming back in time cancels it. */
+  private var pendingFocusLoss: Runnable? = null
+
+  private fun cancelFocusLoss() {
+    pendingFocusLoss?.let(main::removeCallbacks)
+    pendingFocusLoss = null
+  }
+
+  // The radio's own focus request can race the web view's report that a station is starting,
+  // so a loss waits a moment and is dropped if it was the radio, or if focus came back by then
+  // (a short sound); otherwise music stayed paused after a beep.
+  private fun loseFocus(transient: Boolean) {
+    cancelFocusLoss()
+    val loss = Runnable {
+      pendingFocusLoss = null
+      if (radio) return@Runnable
+      resumeOnFocusGain = transient && playing
+      if (playing) command("pause")
+    }
+    pendingFocusLoss = loss
+    main.postDelayed(loss, FOCUS_LOSS_GRACE_MS)
   }
 
   // ── Audio focus: a call or another player takes the speaker → pause (and resume after a call).
   private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
     if (radio) return@OnAudioFocusChangeListener
     when (change) {
-      // The radio's own focus request can race the web view's report that a station is
-      // starting, so a loss waits a moment and is dropped if it was the radio.
-      AudioManager.AUDIOFOCUS_LOSS -> main.postDelayed({
-        if (radio) return@postDelayed
+      AudioManager.AUDIOFOCUS_LOSS -> loseFocus(transient = false)
+      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> loseFocus(transient = true)
+      AudioManager.AUDIOFOCUS_GAIN -> {
+        if (pendingFocusLoss != null) {
+          cancelFocusLoss()
+        } else if (resumeOnFocusGain && !playing) {
+          command("play")
+        }
         resumeOnFocusGain = false
-        if (playing) command("pause")
-      }, FOCUS_LOSS_GRACE_MS)
-      AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> main.postDelayed({
-        if (radio) return@postDelayed
-        resumeOnFocusGain = playing
-        if (playing) command("pause")
-      }, FOCUS_LOSS_GRACE_MS)
-      AudioManager.AUDIOFOCUS_GAIN -> { if (resumeOnFocusGain && !playing) command("play"); resumeOnFocusGain = false }
+      }
       // Ducking for navigation prompts is done by the system for media streams.
     }
   }
