@@ -110,10 +110,17 @@ function parseNode(id: string): [string, string[]] {
 /** Track lists shown in CarPlay, kept so a tapped row plays exactly what was listed. */
 interface ShownTracks { tracks: Track[]; source?: QueueSource }
 const shownTracks = new Map<string, ShownTracks>();
-/** Offline cards shown in the downloads list, by position. */
+/**
+ * Offline cards shown in the downloads list, by position. Rows also carry the card's key: the
+ * list is rebuilt on every request, and a download added meanwhile shifted the positions.
+ */
 let shownOfflineCards: OfflineLibraryCard[] = [];
-/** Radio stations shown in the radio list, by position. */
+/** Radio stations shown in the radio list, by position; rows also carry the station id. */
 let shownStations: InternetRadioStation[] = [];
+
+/** What identifies a downloads card across rebuilds of the list. */
+const offlineCardKey = (card: OfflineLibraryCard) =>
+  [card.serverIndexKey, card.pinSource.kind, card.pinSource.sourceId].join('|');
 
 const t = (key: string) => i18n.t(key);
 
@@ -291,7 +298,7 @@ async function radioList(): Promise<CarPlayList> {
   return {
     sections: [{
       items: shownStations.map((station, index) => ({
-        node: node('radio', String(index)),
+        node: node('radio', String(index), station.id),
         title: station.name,
         browse: false,
         icon: 'radio' as const,
@@ -434,7 +441,7 @@ async function downloadsList(): Promise<CarPlayList> {
   return {
     sections: [{
       items: cards.slice(0, LIST_LIMIT).map((card, index) => ({
-        node: node('offline', String(index)),
+        node: node('offline', String(index), offlineCardKey(card)),
         title: card.name,
         subtitle: card.artist,
         browse: false,
@@ -446,14 +453,18 @@ async function downloadsList(): Promise<CarPlayList> {
   };
 }
 
-/** "Up next" in the now-playing screen: the queue from the playing track on. */
+/**
+ * "Up next" in the now-playing screen: the queue from the playing track on. A row names its
+ * song as well as its position, since the queue moves on (or is reordered) while the list is
+ * open.
+ */
 function queueList(): CarPlayList {
   const { queueItems, queueIndex } = usePlayerStore.getState();
   const start = Math.max(queueIndex, 0);
   const items = queueItems.slice(start, start + LIST_LIMIT).map((ref, offset) => {
     const track = resolveQueueTrack(ref);
     return {
-      node: node('queueat', String(start + offset)),
+      node: node('queueat', String(start + offset), ref.serverId ?? '', ref.trackId),
       title: track.title,
       subtitle: track.artist,
       browse: false,
@@ -576,15 +587,33 @@ async function playRandomMix(): Promise<void> {
   if (tracks.length > 0) usePlayerStore.getState().playTrack(tracks[0], tracks);
 }
 
-/** The tracks of the downloads list's card at `index`, with the server key they play from. */
-export async function carPlayOfflineTracks(index: number): Promise<{ tracks: Track[]; serverKey: string } | null> {
-  const card = shownOfflineCards[index];
+/**
+ * The downloads card a row stands for: the one listed at `index` if it is still the card the row
+ * named (`key`), else that card wherever it is now. Rows without a key (older copies) go by
+ * position.
+ */
+async function offlineCardFor(index: number, key?: string): Promise<OfflineLibraryCard | undefined> {
+  if (!key) return shownOfflineCards[index];
+  const listed = shownOfflineCards[index];
+  if (listed && offlineCardKey(listed) === key) return listed;
+  const moved = shownOfflineCards.find(card => offlineCardKey(card) === key);
+  if (moved) return moved;
+  const groups = useLocalPlaybackStore.getState().listPinnedGroups();
+  return (await hydrateOfflineLibraryCards(groups)).find(card => offlineCardKey(card) === key);
+}
+
+/** The tracks of a downloads list's card, with the server key they play from. */
+export async function carPlayOfflineTracks(
+  index: number,
+  key?: string,
+): Promise<{ tracks: Track[]; serverKey: string } | null> {
+  const card = await offlineCardFor(index, key);
   if (!card || !(await ensureServerForOfflineCard(card))) return null;
   return { tracks: await buildTracksForOfflineCard(card), serverKey: offlineQueueServerKeyForCard(card) };
 }
 
-async function playOfflineCard(index: number): Promise<void> {
-  const offline = await carPlayOfflineTracks(index);
+async function playOfflineCard(index: number, key?: string): Promise<void> {
+  const offline = await carPlayOfflineTracks(index, key);
   if (!offline) return;
   usePlayerStore.setState({ queueServerId: offline.serverKey });
   if (offline.tracks.length > 0) usePlayerStore.getState().playTrack(offline.tracks[0], offline.tracks);
@@ -605,8 +634,11 @@ function resumePlayback(): void {
   if (player.currentTrack && !player.isPlaying) player.resume();
 }
 
-function playStation(index: number): void {
-  const station = shownStations[index];
+function playStation(index: number, stationId?: string): void {
+  const listed = shownStations[index];
+  const station = !stationId || listed?.id === stationId
+    ? listed
+    : shownStations.find(candidate => candidate.id === stationId);
   if (station) usePlayerStore.getState().playRadio(station);
 }
 
@@ -631,9 +663,9 @@ export async function carPlayPlay(id: string): Promise<void> {
     case 'favplay': await playFavorites(); return;
     case 'luckymix': await buildAndPlayLuckyMix(); return;
     case 'resume': resumePlayback(); return;
-    case 'radio': playStation(Number(parts[0])); return;
-    case 'offline': await playOfflineCard(Number(parts[0])); return;
-    case 'queueat': playQueueIndex(Number(parts[0])); return;
+    case 'radio': playStation(Number(parts[0]), parts[1]); return;
+    case 'offline': await playOfflineCard(Number(parts[0]), parts[1]); return;
+    case 'queueat': playQueueItem(Number(parts[0]), parts[1], parts[2]); return;
     default: return;
   }
 }
@@ -644,11 +676,23 @@ export async function carPlayPlayList(listNode: string): Promise<void> {
   playShown(listNode, 0, false);
 }
 
-function playQueueIndex(index: number): void {
+/**
+ * Jumps to the queue song an up-next row named: at its listed position if it is still there,
+ * else the same song nearest to it; a song no longer queued plays nothing. Rows without a song
+ * (older copies) go by position.
+ */
+function playQueueItem(index: number, serverId?: string, trackId?: string): void {
   const { queueItems, playTrack } = usePlayerStore.getState();
-  const ref = queueItems[index];
-  if (!ref) return;
-  playTrack(resolveQueueTrack(ref), undefined, true, false, index);
+  const named = (i: number) => trackId === undefined
+    || (queueItems[i]?.trackId === trackId && (queueItems[i]?.serverId ?? '') === serverId);
+  let at = queueItems[index] && named(index) ? index : -1;
+  if (at < 0 && trackId !== undefined) {
+    queueItems.forEach((_ref, i) => {
+      if (named(i) && (at < 0 || Math.abs(i - index) < Math.abs(at - index))) at = i;
+    });
+  }
+  if (at < 0) return;
+  playTrack(resolveQueueTrack(queueItems[at]), undefined, true, false, at);
 }
 
 /** Tabs that show the playing song: the resume row and the random mix's genre. */
@@ -705,6 +749,22 @@ export function carPlayCommand(action: string): void {
   switch (action) {
     case 'shuffle': player.toggleShuffleMode(); return;
     case 'repeat': player.toggleRepeat(); return;
+    // Siri and other controls name the mode they want ("shuffle on"); toggling turned an
+    // already shuffled queue off.
+    case 'shuffle-on':
+    case 'shuffle-off':
+      if (player.shuffleMode !== (action === 'shuffle-on')) player.toggleShuffleMode();
+      return;
+    case 'repeat-off':
+    case 'repeat-all':
+    case 'repeat-one': {
+      const wanted = action.slice('repeat-'.length);
+      // The player cycles off → all → one; two steps reach any mode.
+      for (let step = 0; step < 2 && usePlayerStore.getState().repeatMode !== wanted; step++) {
+        usePlayerStore.getState().toggleRepeat();
+      }
+      return;
+    }
     case 'infinite': {
       const auth = useAuthStore.getState();
       auth.setInfiniteQueueEnabled(!auth.infiniteQueueEnabled);

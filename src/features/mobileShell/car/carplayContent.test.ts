@@ -55,7 +55,7 @@ vi.mock('@/features/offline', () => ({
   loadArtistFromLibraryIndex: vi.fn(async () => null),
   loadStarredFromAllLibraryIndexes: vi.fn(async () => ({ artists: [], albums: mocks.starredAlbums, songs: mocks.starredSongs })),
   offlineQueueServerKeyForCard: () => 'srv',
-  offlineTrackCount: () => 0,
+  offlineTrackCount: () => 1,
 }));
 vi.mock('@/lib/library/libraryBrowseScope', async importOriginal => ({
   ...(await importOriginal<object>()),
@@ -87,6 +87,7 @@ vi.mock('./carplayCovers', () => ({ attachCarPlayCovers: vi.fn(async () => null)
 vi.mock('@/store/mediaResolver', async importOriginal => ({ ...(await importOriginal<object>()), resolveAlbum: mocks.resolveAlbum }));
 
 import { carPlayCommand, carPlayList, carPlayPlay, carPlayState, _resetCarPlayContentForTest } from './carplayContent';
+import { buildTracksForOfflineCard, hydrateOfflineLibraryCards } from '@/features/offline';
 
 const song = (id: string): SubsonicSong => ({
   id, title: `Song ${id}`, artist: 'Band', album: 'Record', albumId: 'al1', duration: 200,
@@ -205,9 +206,13 @@ describe('carplayContent', () => {
     const station = { id: 'r1', name: 'Jazz', streamUrl: 'https://x' };
     mocks.getInternetRadioStationsForServer.mockResolvedValueOnce([station]);
     const radio = await carPlayList('radio');
-    expect(radio.sections[0].items[0]).toMatchObject({ node: 'radio|0', title: 'Jazz', browse: false });
-    await carPlayPlay('radio|0');
+    expect(radio.sections[0].items[0]).toMatchObject({ node: 'radio|0|r1', title: 'Jazz', browse: false });
+    await carPlayPlay('radio|0|r1');
     expect(playRadio).toHaveBeenCalledWith(station);
+    // A row from before the list was rebuilt names a station that is gone: nothing plays.
+    playRadio.mockClear();
+    await carPlayPlay('radio|0|r9');
+    expect(playRadio).not.toHaveBeenCalled();
   });
 
   it('favourite songs play shuffled', async () => {
@@ -302,5 +307,65 @@ describe('carplayContent', () => {
     await carPlayPlay('track|album%7Csrv%7Cgone|0');
     await carPlayPlay('nonsense');
     expect(mocks.playTrack).not.toHaveBeenCalled();
+  });
+  it('remote commands set the shuffle and repeat mode they name instead of toggling', () => {
+    mocks.player = { shuffleMode: true, repeatMode: 'all' };
+    mocks.toggleShuffleMode.mockImplementation(() => { mocks.player.shuffleMode = !mocks.player.shuffleMode; });
+    const cycle: Record<string, string> = { off: 'all', all: 'one', one: 'off' };
+    mocks.toggleRepeat.mockImplementation(() => { mocks.player.repeatMode = cycle[mocks.player.repeatMode as string]; });
+
+    carPlayCommand('shuffle-on');
+    expect(mocks.toggleShuffleMode).not.toHaveBeenCalled();
+    carPlayCommand('shuffle-off');
+    expect(mocks.player.shuffleMode).toBe(false);
+
+    carPlayCommand('repeat-all');
+    expect(mocks.toggleRepeat).not.toHaveBeenCalled();
+    carPlayCommand('repeat-off');
+    expect(mocks.player.repeatMode).toBe('off');
+    carPlayCommand('repeat-one');
+    expect(mocks.player.repeatMode).toBe('one');
+    carPlayCommand('repeat-all');
+    expect(mocks.player.repeatMode).toBe('all');
+    mocks.toggleShuffleMode.mockReset();
+    mocks.toggleRepeat.mockReset();
+  });
+
+  it('an up-next row plays the song it named after the queue moved', async () => {
+    mocks.player = {
+      queueIndex: 0,
+      queueItems: [{ trackId: 'a', serverId: 'srv' }, { trackId: 'b', serverId: 'srv' }, { trackId: 'c', serverId: 'srv' }],
+    };
+    const list = await carPlayList('queue');
+    const rowC = list.sections[0].items[2].node;
+    // A song was put in front of "c" meanwhile.
+    mocks.player.queueItems = [
+      { trackId: 'a', serverId: 'srv' }, { trackId: 'b', serverId: 'srv' }, { trackId: 'x', serverId: 'srv' }, { trackId: 'c', serverId: 'srv' },
+    ];
+    await carPlayPlay(rowC);
+    const [track, , , , index] = mocks.playTrack.mock.calls[0];
+    expect(track.id).toBe('c');
+    expect(index).toBe(3);
+    // Once it left the queue, the row plays nothing.
+    mocks.playTrack.mockClear();
+    mocks.player.queueItems = [{ trackId: 'a', serverId: 'srv' }];
+    await carPlayPlay(rowC);
+    expect(mocks.playTrack).not.toHaveBeenCalled();
+  });
+
+  it('a downloads row plays the card it named after the list was rebuilt in another order', async () => {
+    const card = (id: string) => ({
+      serverIndexKey: 'srv', pinSource: { kind: 'album' as const, sourceId: id }, trackIds: [id], name: `Record ${id}`, artist: 'Band',
+    });
+    vi.mocked(hydrateOfflineLibraryCards).mockResolvedValueOnce([card('a1'), card('a2')]);
+    const list = await carPlayList('downloads');
+    const rowA2 = list.sections[0].items[1].node;
+    // A new download now sits first.
+    vi.mocked(hydrateOfflineLibraryCards).mockResolvedValueOnce([card('new'), card('a1'), card('a2')]);
+    await carPlayList('downloads');
+    vi.mocked(buildTracksForOfflineCard).mockImplementationOnce(async c => [{ id: c.trackIds[0], title: 'T' } as never]);
+    await carPlayPlay(rowA2);
+    expect(vi.mocked(buildTracksForOfflineCard).mock.calls[0][0].pinSource.sourceId).toBe('a2');
+    expect(mocks.playTrack.mock.calls[0][0].id).toBe('a2');
   });
 });
