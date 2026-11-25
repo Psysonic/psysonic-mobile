@@ -22,14 +22,28 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: never
+  # The Xcode the TestFlight builds use (build 169: Xcode 26.6 on macos-26). Pinned so a new
+  # runner default does not change the SDK unnoticed; moving to Xcode 27 is its own change.
+  XCODE_VERSION: '26.6'
 
 jobs:
   check:
     if: inputs.mode == 'check'
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        run: |
+          app="/Applications/Xcode_${XCODE_VERSION}.app"
+          if [ ! -d "$app" ]; then
+            echo "::error::$app is not on this runner image"
+            ls -d /Applications/Xcode*.app
+            exit 1
+          fi
+          sudo xcode-select -s "$app"
+          xcodebuild -version
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -54,8 +68,11 @@ jobs:
           cargo check --release --workspace --target aarch64-apple-ios --keep-going --message-format short 2>&1 | tee -a "$GITHUB_WORKSPACE/ios-check.log"
           release=${PIPESTATUS[0]}
           echo "cargo exit code: dev=$dev release=$release" | tee -a "$GITHUB_WORKSPACE/ios-check.log"
+          # Both runs finish first, so the log has every error; then the step fails.
+          if [ "$dev" -ne 0 ] || [ "$release" -ne 0 ]; then exit 1; fi
 
       - name: Summary
+        if: always()
         run: |
           log=ios-check.log
           {
@@ -74,13 +91,14 @@ jobs:
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
           name: psysonic-ios-check-log
           path: ios-check.log
 
   testflight:
     if: inputs.mode == 'testflight' || inputs.mode == 'symbols'
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 150
     env:
       APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
@@ -117,7 +135,16 @@ jobs:
           printf '%s\n' "$APPLE_API_KEY_P8" > ~/private_keys/AuthKey_${APPLE_API_KEY}.p8
           echo "APPLE_API_KEY_PATH=$HOME/private_keys/AuthKey_${APPLE_API_KEY}.p8" >> "$GITHUB_ENV"
 
-      - run: xcodebuild -version
+      - name: Select Xcode
+        run: |
+          app="/Applications/Xcode_${XCODE_VERSION}.app"
+          if [ ! -d "$app" ]; then
+            echo "::error::$app is not on this runner image"
+            ls -d /Applications/Xcode*.app
+            exit 1
+          fi
+          sudo xcode-select -s "$app"
+          xcodebuild -version
 
       - run: npm ci
 
@@ -155,15 +182,37 @@ jobs:
           PSY_MOBILE_SHELL: '1'
         run: npx tauri ios build --ci --export-method app-store-connect --build-number ${{ github.run_number }}
 
-      - name: Show signed entitlements
+      # The widgets read what the app writes to the App Group: without the entitlement in
+      # either signed bundle they stay empty, so a build without it does not go to TestFlight.
+      - name: Check signed entitlements
         if: inputs.mode == 'testflight'
         run: |
           ipa=$(find src-tauri/gen/apple/build -name '*.ipa' | head -n 1)
           rm -rf ipa-check && mkdir ipa-check && unzip -q "$ipa" -d ipa-check
-          codesign -d --entitlements - ipa-check/Payload/*.app
-          for appex in ipa-check/Payload/*.app/PlugIns/*.appex; do
-            codesign -d --entitlements - "$appex"
+          missing=0
+          check() {
+            local entitlements
+            entitlements=$(codesign -d --entitlements - --xml "$1" 2>/dev/null)
+            echo "### $1"
+            echo "$entitlements"
+            echo
+            if ! grep -q "com.apple.security.application-groups" <<<"$entitlements" \
+              || ! grep -q "group.dev.psysonic.player" <<<"$entitlements"; then
+              echo "::error::$1 is signed without the App Group group.dev.psysonic.player"
+              missing=1
+            fi
+          }
+          apps=(ipa-check/Payload/*.app)
+          check "${apps[0]}"
+          appexes=("${apps[0]}"/PlugIns/*.appex)
+          if [ ! -e "${appexes[0]}" ]; then
+            echo "::error::No app extension in the IPA (widgets missing)"
+            missing=1
+          fi
+          for appex in "${appexes[@]}"; do
+            [ -e "$appex" ] && check "$appex"
           done
+          exit $missing
 
       - name: Upload to TestFlight
         if: inputs.mode == 'testflight'

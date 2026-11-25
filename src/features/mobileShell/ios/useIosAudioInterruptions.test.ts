@@ -129,6 +129,57 @@ describe('useIosAudioInterruptions', () => {
     unmount();
   });
 
+  it('play after coming back from an interruption that never ended still asks for the session', async () => {
+    const { unmount } = await mount();
+    await interruption(true);
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    await waitFor(() => expect(audio.audioSetDevice).toHaveBeenCalledOnce());
+    await act(async () => { usePlayerStore.getState().resume(); });
+    expect(vi.mocked(emit).mock.calls).toEqual([['ios-audio:reactivate']]);
+    unmount();
+  });
+
+  it('play after an interruption that ended asks for nothing (the native side reactivated)', async () => {
+    const { unmount } = await mount();
+    await interruption(true);
+    await interruption(false, false);
+    await waitFor(() => expect(audio.audioSetDevice).toHaveBeenCalledOnce());
+    await act(async () => { usePlayerStore.getState().resume(); });
+    expect(vi.mocked(emit)).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('a real call while a station starts still reopens the output and resumes when it ends', async () => {
+    const { unmount } = await mount();
+    window.dispatchEvent(new Event('psysonic:radio-starting'));
+    await interruption(true);
+    expect(pause).not.toHaveBeenCalled();
+    await interruption(false, true);
+    await waitFor(() => expect(resume).toHaveBeenCalledOnce());
+    expect(audio.audioSetDevice).toHaveBeenCalledOnce();
+    unmount();
+  });
+
+  it('a station taking the session over: coming back leaves it alone, the next engine track asks for the session', async () => {
+    const { unmount } = await mount();
+    window.dispatchEvent(new Event('psysonic:radio-starting'));
+    await interruption(true);
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(audio.audioSetDevice).not.toHaveBeenCalled();
+    // The station itself starting to play needs no session of the engine.
+    await act(async () => {
+      usePlayerStore.setState({ isPlaying: false });
+      usePlayerStore.setState({ isPlaying: true, currentRadio: { id: 'r1', name: 'Station', streamUrl: 'http://radio.test/stream' } });
+    });
+    expect(vi.mocked(emit)).not.toHaveBeenCalled();
+    await act(async () => {
+      usePlayerStore.setState({ isPlaying: false, currentRadio: null });
+      usePlayerStore.getState().resume();
+    });
+    expect(vi.mocked(emit).mock.calls).toEqual([['ios-audio:reactivate']]);
+    unmount();
+  });
+
   it('stops listening when unmounted', async () => {
     const { unmount } = await mount();
     unmount();

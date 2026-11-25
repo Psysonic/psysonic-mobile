@@ -14,6 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { setTargetVersion } from './extension-version.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const srcTauri = resolve(here, '..');
@@ -125,8 +126,10 @@ if (yml.includes(MARKER)) {
   yml = yml.slice(0, start) + app + yml.slice(end);
   if (!yml.endsWith('\n')) yml += '\n';
   yml += extension;
-  writeFileSync(projectFile, yml);
   console.log(`project.yml: ${EXTENSION} added, ${appTarget} compiles the widget bridge`);
 }
+// Also in a project patched by an earlier run, which carries that run's build number.
+yml = setTargetVersion(yml, EXTENSION, version, build);
+writeFileSync(projectFile, yml);
 
 execFileSync('xcodegen', ['generate', '--spec', projectFile, '--project', projectDir], { stdio: 'inherit' });

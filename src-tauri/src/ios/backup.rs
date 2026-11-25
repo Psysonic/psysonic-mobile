@@ -1,21 +1,40 @@
-//! Downloaded music lives in Application Support, which iOS backs up by default.
-//! Apple asks apps to keep anything that can be downloaded again out of iCloud
-//! and computer backups, so every launch marks the media folder "do not back
-//! up"; the flag covers everything inside it.
+//! Downloaded music lives in Application Support, which iOS backs up by default, and so do
+//! the cover cache and the stream spill files next to it. Apple asks apps to keep anything
+//! that can be downloaded again out of iCloud and computer backups, so every launch marks
+//! these folders "do not back up"; the flag covers everything inside each of them.
+//!
+//! The folders are only ever emptied, never removed (`cover_cache::bucket` keeps the cache
+//! root), so the flag set at launch stays on them.
+
+use std::path::Path;
 
 use objc2::runtime::AnyObject;
 use objc2_foundation::{NSNumber, NSString, NSURLIsExcludedFromBackupKey, NSURL};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
+/// The audio engine's spill folder under app data (`psysonic-audio` `helpers/stream_spill.rs`).
+const STREAM_SPILL_DIR: &str = "stream-spill";
+
+/// Marks the media folder and the caches "do not back up".
 pub(crate) fn exclude_media_dir(app: &AppHandle) {
-    let dir = match psysonic_syncfs::cache::local::resolve_media_dir(None, app) {
-        Ok(dir) => dir,
+    match psysonic_syncfs::cache::local::resolve_media_dir(None, app) {
+        Ok(dir) => exclude_dir(&dir),
+        Err(e) => crate::app_eprintln!("[offline] media folder unknown, backup flag not set: {e}"),
+    }
+    match crate::cover_cache::cover_cache_root(app) {
+        Ok(dir) => exclude_dir(&dir),
+        Err(e) => crate::app_eprintln!("[offline] cover cache unknown, backup flag not set: {e}"),
+    }
+    match app.path().app_data_dir() {
+        Ok(data) => exclude_dir(&data.join(STREAM_SPILL_DIR)),
         Err(e) => {
-            crate::app_eprintln!("[offline] media folder unknown, backup flag not set: {e}");
-            return;
+            crate::app_eprintln!("[offline] app data folder unknown, backup flag not set: {e}")
         }
-    };
-    if let Err(e) = std::fs::create_dir_all(&dir) {
+    }
+}
+
+fn exclude_dir(dir: &Path) {
+    if let Err(e) = std::fs::create_dir_all(dir) {
         crate::app_eprintln!("[offline] could not create {}: {e}", dir.display());
         return;
     }

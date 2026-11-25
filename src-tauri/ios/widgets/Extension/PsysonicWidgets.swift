@@ -41,12 +41,17 @@ struct StateProvider: TimelineProvider {
     }
 
     /// The app asks for a redraw on every change. A playing song also ends at a known time:
-    /// redraw then, so a widget does not keep showing a song the app has moved past.
+    /// redraw then, so a widget does not keep showing a song the app has moved past. Once that
+    /// time has passed without a new report (the app was ended while playing), asking again
+    /// would only reload over and over: wait for the app instead.
     func getTimeline(in context: Context, completion: @escaping (Timeline<StateEntry>) -> Void) {
         let state = WidgetState.load()
         var policy: TimelineReloadPolicy = .never
         if let now = state.now, now.playing, let end = now.endDate {
-            policy = .after(end.addingTimeInterval(5))
+            let redraw = end.addingTimeInterval(5)
+            if redraw > Date() {
+                policy = .after(redraw)
+            }
         }
         completion(Timeline(entries: [StateEntry(date: Date(), state: state)], policy: policy))
     }

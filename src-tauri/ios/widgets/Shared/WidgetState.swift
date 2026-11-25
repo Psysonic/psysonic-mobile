@@ -91,16 +91,26 @@ extension WidgetState.Now {
     var fraction: Double { duration > 0 ? min(max(elapsed / duration, 0), 1) : 0 }
 }
 
-/// A tap that ran in the extension instead of the app: the action waits in the App Group
-/// and a Darwin notification tells the running app to fetch it (`WidgetBridge.swift`).
+/// A tap that ran in the extension instead of the app: the action waits in the App Group, one
+/// file per tap so quick taps do not overwrite each other, and a Darwin notification tells
+/// the running app to fetch them (`WidgetBridge.swift`). An app that was not running fetches
+/// them when it starts; taps older than `maxAge` are dropped then, so an old tap does not
+/// replace the queue the next time the app is opened.
 enum WidgetCommandDrop {
     static let notification = "dev.psysonic.player.widget-command"
-    static let fileName = "command.txt"
+    static let prefix = "command-"
+    static let suffix = ".txt"
+    /// The single file older versions wrote.
+    static let legacyFileName = "command.txt"
+    static let maxAge: TimeInterval = 120
 
     static func post(_ action: String) {
         guard let folder = WidgetState.folder else { return }
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try? Data(action.utf8).write(to: folder.appendingPathComponent(fileName), options: .atomic)
+        // Milliseconds first, so the names sort in the order of the taps.
+        let millis = UInt64(Date().timeIntervalSince1970 * 1000)
+        let name = String(format: "%@%013llu-%@%@", prefix, millis, UUID().uuidString, suffix)
+        try? Data(action.utf8).write(to: folder.appendingPathComponent(name), options: .atomic)
         CFNotificationCenterPostNotification(
             CFNotificationCenterGetDarwinNotifyCenter(),
             CFNotificationName(notification as CFString),
@@ -108,13 +118,26 @@ enum WidgetCommandDrop {
         )
     }
 
-    /// The waiting action, removed as it is read.
-    static func take() -> String? {
-        guard let file = WidgetState.folder?.appendingPathComponent(fileName),
-              let data = try? Data(contentsOf: file)
-        else { return nil }
-        try? FileManager.default.removeItem(at: file)
-        let action = String(decoding: data, as: UTF8.self)
-        return action.isEmpty ? nil : action
+    /// The waiting actions, oldest first, removed as they are read.
+    static func takeAll() -> [String] {
+        guard let folder = WidgetState.folder,
+              let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path)
+        else { return [] }
+        let waiting = names
+            .filter { $0 == legacyFileName || ($0.hasPrefix(prefix) && $0.hasSuffix(suffix)) }
+            .sorted()
+        let oldest = Date().addingTimeInterval(-maxAge)
+        var actions: [String] = []
+        for name in waiting {
+            let file = folder.appendingPathComponent(name)
+            let written = (try? FileManager.default.attributesOfItem(atPath: file.path))?[.modificationDate] as? Date
+            let data = try? Data(contentsOf: file)
+            // Removed before it runs: a tap must never run twice.
+            guard (try? FileManager.default.removeItem(at: file)) != nil, let data else { continue }
+            guard let written, written >= oldest else { continue }
+            let action = String(decoding: data, as: UTF8.self)
+            if !action.isEmpty { actions.append(action) }
+        }
+        return actions
     }
 }

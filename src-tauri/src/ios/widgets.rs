@@ -9,7 +9,10 @@
 //! A widget's buttons run an App Intent in the app (`AudioPlaybackIntent`), which calls
 //! `psysonic_widget_command`; the action goes to the web layer as `widget:command`. One
 //! that arrives before the web layer listens (the app was started by the tap) waits here
-//! until it reports `widget:ready`.
+//! until it reports `widget:ready`, but only for `WAIT_LIMIT`: a tap the app never came to
+//! the front for must not replace the queue hours later, the next time the app is opened.
+//! A page load (also the reload after the WebContent process died) means nobody listens
+//! until the new page reports ready again.
 
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashSet;
@@ -18,11 +21,13 @@ use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use objc2::runtime::{AnyClass, AnyObject};
 use objc2::{class, msg_send};
 use objc2_foundation::NSString;
 use serde_json::Value;
+use tauri::webview::PageLoadEvent;
 use tauri::{AppHandle, Emitter, Listener};
 
 /// Registered for `dev.psysonic.player` and `dev.psysonic.player.widgets` in the developer
@@ -35,7 +40,10 @@ const IMAGE_PREFIX: &str = "img-";
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
 static WEB_READY: AtomicBool = AtomicBool::new(false);
-static WAITING: Mutex<Vec<String>> = Mutex::new(Vec::new());
+/// Taps waiting for the web layer, with the time they came in.
+static WAITING: Mutex<Vec<(String, Instant)>> = Mutex::new(Vec::new());
+/// How long a tap waits for the web layer: a cold start takes seconds, not minutes.
+const WAIT_LIMIT: Duration = Duration::from_secs(120);
 /// One writer at a time: updates come fast while skipping through a queue.
 static WRITING: Mutex<()> = Mutex::new(());
 static FOLDER: OnceLock<Option<PathBuf>> = OnceLock::new();
@@ -54,6 +62,17 @@ pub(crate) fn listen(app: &AppHandle) {
         return;
     }
     let _ = app.run_on_main_thread(|| center_call(Center::Observe));
+    // A page starting to load has no listener until it reports ready again.
+    let page_loads = tauri::plugin::Builder::<tauri::Wry, ()>::new("psysonic-widget-page")
+        .on_page_load(|_webview, payload| {
+            if payload.event() == PageLoadEvent::Started {
+                WEB_READY.store(false, Ordering::SeqCst);
+            }
+        })
+        .build();
+    if let Err(error) = app.plugin(page_loads) {
+        crate::app_eprintln!("[widgets] page load watch not added: {error}");
+    }
     let updates = app.clone();
     app.listen_any("widget:update", move |event| {
         let Ok(state) = serde_json::from_str::<Value>(event.payload()) else {
@@ -74,7 +93,12 @@ pub(crate) fn listen(app: &AppHandle) {
             .lock()
             .map(|mut waiting| std::mem::take(&mut *waiting))
             .unwrap_or_default();
-        for action in waiting {
+        let now = Instant::now();
+        for (action, at) in waiting {
+            if now.duration_since(at) > WAIT_LIMIT {
+                crate::app_eprintln!("[widgets] dropped stale command: {action}");
+                continue;
+            }
             let _ = ready.emit("widget:command", CommandRequest { action });
         }
     });
@@ -115,7 +139,7 @@ fn deliver(action: String) {
         }
     }
     if let Ok(mut waiting) = WAITING.lock() {
-        waiting.push(action);
+        waiting.push((action, Instant::now()));
     }
 }
 
